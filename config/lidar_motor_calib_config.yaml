@@ -1,0 +1,39 @@
+# 标定结果写出到bag同级同名文件夹
+
+calibration_config:
+   optimize_motor_intrisinc_param: true         # 优化编码器内参：alpha1, alpha2, dP
+   optimize_motor_angle_correct_param: false     # 优化编码器360个角度修正量
+   optimize_lidar_intrisinc_param: false         # 优化激光器内参：16个垂直角
+   
+bag_decode:
+   bag_path: D:\code\01.sensor_calibrate\data\2022-12-01-13-47-10.bag
+   srcpts_path: D:\code\01.sensor_calibrate\data\01\RawLidar00000_All.txt
+   lidar_topic: /hesai/pandar_packets
+   motor_topic: /GV_MotorConfig
+
+   # process_duration: 10         # 标定处理范围，默认以编码器开始旋转后的process_duration秒的数据用于标定
+   
+   # 以下参数若不指定，默认全部解码，这个可以指定处理范围，和上面的有一点冲突
+   start_process_time: 70
+   end_process_time: 80
+   
+   # 若不指定起止处理id，需要注释掉
+   # start_process_id: 
+   # end_process_id: 
+   
+   # 范围过滤原始bag解码数据
+   min_detect_distance: 0.5
+   max_detect_distance: 100
+
+motor_intrinsic_parameter:
+  alpha1: 0.0 #0.016634
+  alpha2: 0.0  #-0.077250
+  #dp: [-0.005750, -0.011189, 0.000000]
+  dp: [0, -0.015, 0.000000]
+
+motor_angle_calibration_parameter:
+  # 若不设置，则默认360个角度修正值为0
+  # angle_correction_file: E:\Projects\git_code\lidar_imu_calib\2022-12-01-13-47-10\optimize_result\motor_angle_correction_param.txt
+
+  # 这个可以不用，默认标所有线
+  # calibration_laser_id: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]

@@ -1,0 +1,28 @@
+# 标定结果写出到点云同级同名文件夹
+
+calibration_config:
+   mode: 2                                  # 1 = 图像选点，2 = 标定
+   calibrate_id: [155, 166]                 # 模式1状态下，照片选择标定点的id
+   optimize_external_param: true            # 优化外参
+   optimize_time_delay_separate: false      # 多张照片的时间偏移分开标定
+   optimize_time_delay_only_one: true       # 多张照片的时间偏移只标定一个
+   
+data_path:
+   laser_cloud_path: E:/Projects/data/bp/自研相机确定时间戳/second/2022-12-13-14-19-22/test1213/all_maped.ply
+   laser_trajectory_path: E:/Projects/data/bp/自研相机确定时间戳/second/2022-12-13-14-19-22/test1213/pos.xyz
+   camera_time_file_path: E:/Projects/data/bp/自研相机确定时间戳/second/2022-12-13-14-19-22/test1213/result.txt
+   camera_data_path: E:/Projects/data/bp/自研相机确定时间戳/second/2022-12-13-14-19-22/test1213/pic/
+   
+camera_parameter:
+   camera_intrinsic: [1930.7302, 0.0, 1920,
+                      0.0,  1930.5038, 1080,
+                      0.0, 0.0, 1.0 ] 
+   camera_dist_coeffs: [-0.3283, 0.1017, 0.001669, -0.001838]  #k1, k2, p1, p2, k3
+   
+   camera_to_imu_R: [-0.080582, 0.996587, -0.017904, 
+                    -0.784866, -0.074514, -0.615168, 
+                    -0.614403, -0.035519, 0.788192]
+                  
+   camera_to_imu_t: [-0.069905, 0.271261, 0.078130]
+   
+   time_delay: 0.017
