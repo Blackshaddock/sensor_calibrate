@@ -284,10 +284,11 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 		auto func = LidarMotorCalibFactor4geosun::Create(pair, sPose, tPose,1.0);
 
 		problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
+		problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
 		//LidarMotorCalibFactor4geosun lmcf(pair, sPose, tPose, 1.0);
 		//double res[2], datas[30];
 		//lmcf.operator()(paramBlocks.data(), res, datas);
-//#ifdef lvtu
+#ifdef lvtu
 		// 调试ceres内部优化点位是否正常，优化残差是否符合预期
 		if (configPtr_->debugFlag) {
 			double res[2], datas[30];
@@ -343,7 +344,7 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 				tCloud2.push_back(tPt2);
 			}
 	}
-//#endif // lvtu
+#endif // lvtu
 
 		
 		

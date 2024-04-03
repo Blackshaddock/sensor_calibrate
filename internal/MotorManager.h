@@ -14,11 +14,12 @@ struct MotorCalibrationParam : public ParamterBase {
 	typedef std::shared_ptr<MotorCalibrationParam> Ptr;
 
 	double alpha1;			// 编码器 X 轴修正角，度
-	double alpha2;			// 编码器 Z 轴修正角，度
+	double alpha2;			// 编码器 Y 轴修正角，度
+	double alpha3;			// 编码器 z轴修正角
 	Eigen::Vector3d dP;		// 编码器三轴平移修正量
 	double startAngle;		// 开始时刻的角度，这个值不知道哪里会用，原码有
 
-	MotorCalibrationParam() : alpha1(0.), alpha2(0.),
+	MotorCalibrationParam() : alpha1(0.), alpha2(0.), alpha3(0.),
 							  startAngle(0.) {}
 };
 
@@ -28,9 +29,10 @@ struct MotorCalibrationParam2 {
 
 	Eigen::Quaterniond qAlphaX;		// 编码器 X 轴修正角，转四元数
 	Eigen::Quaterniond qAlphaY;		// geosun Z轴可观 转换之后
-	Eigen::Quaterniond qAlphaZ;		// 编码器 Z 轴修正角，转四元数 绿土Y轴可观 转换之后
+	Eigen::Quaterniond qAlphaZ;	    // 编码器 Z 轴修正角，转四元数 绿土Y轴可观 转换之后
 	
 	Eigen::Vector3d dP;				// 编码器平移修正量
+	
 	double startAngle;				// 开始时刻的角度，这个值不知道哪里会用，原码有
 };
 

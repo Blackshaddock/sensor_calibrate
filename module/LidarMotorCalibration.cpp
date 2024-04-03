@@ -8,6 +8,7 @@
 #include <pcl/io/ply_io.h>		// 仅用于调试，后续可以取消
 #include <pcl/common/impl/io.hpp>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/registration/icp.h>
 #include <pcl/common/pca.h>
 #include <omp.h>
 
@@ -132,9 +133,14 @@ bool LidarMotorCalibration::DataPrepare4geosun()
 		}
 		sscanf(tmp.c_str(), " %f %f %f %f %f %d %f", &tmp_pt.x, &tmp_pt.y, &tmp_pt.z, &tmp_pt.intensity, &tmp_pt.time, &tmp_pt.ring, &tmp_pt.angle);
 		//将bag解析的原始坐标系下的点云数据转到适配编码器的局部坐标系
+		if (abs(tmp_pt.x) < 1 || abs(tmp_pt.y) < 1 || abs(tmp_pt.z) < 1 || abs(tmp_pt.x) > 100 || abs(tmp_pt.y) > 100 || abs(tmp_pt.z) > 100)
+		{
+			continue;
+		}
 		tmp_pt.normal_x = tmp_pt.x;
 		tmp_pt.normal_y = tmp_pt.y;
 		tmp_pt.normal_z = tmp_pt.z;
+		//tmp_pt.angle *= -1.0;
 		ConvertToMotorLocalCoordinate(tmp_pt);
 		lidarFrameLocal.cloudPtr->push_back(tmp_pt);
 	}
@@ -432,6 +438,12 @@ bool LidarMotorCalibration::ExtractMatchingPairs(BaseCloudPtr& fullCloud, const 
 	plane_extract::ExtractPlaneCloud(targetCloud, targetCloud, indexes2);
 #endif // USEPLANEDETECT
 
+	//ICP配准获取同名点索引，R、T不用进行优化
+	/*if (!GetCorrespondPointIndex(sourceCloud, targetCloud,matchPairs))
+	{
+		return false;
+	}*/
+
 	// 提取匹配对
 	if (!FeatureAssociation(sourceCloud, targetCloud, matchPairs)) {
 		return false;
@@ -441,6 +453,30 @@ bool LidarMotorCalibration::ExtractMatchingPairs(BaseCloudPtr& fullCloud, const 
 		PlyIo::SavePLYFileBinary(debugTestPath_ + "source_cloud.ply", *sourceCloud);
 		PlyIo::SavePLYFileBinary(debugTestPath_ + "target_cloud.ply", *targetCloud);
 	}
+	return true;
+}
+
+bool LidarMotorCalibration::GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, MotorCalibMatchPairs& matchPairs)
+{
+	if (sourceCloud->empty() || targetCloud->empty()) {
+		return false;
+	}
+	BaseCloudPtr outCloud(new BaseCloud);
+	pcl::IterativeClosestPoint<BasePoint, BasePoint>::Ptr icp(new pcl::IterativeClosestPoint<BasePoint, BasePoint>);
+	icp->setInputSource(sourceCloud);
+	icp->setInputSource(targetCloud);
+	icp->setMaximumIterations(50);
+	icp->setMaxCorrespondenceDistance(0.2);
+	icp->setTransformationEpsilon(1e-8);
+	icp->setEuclideanFitnessEpsilon(0.01);
+	
+	icp->align(*outCloud);
+	if (!icp->hasConverged())
+	{
+		LOG(INFO) << "ICP Converge: 0"  ;
+		return true;
+	}
+	
 	return true;
 }
 
@@ -539,7 +575,9 @@ bool LidarMotorCalibration::FeatureAssociation(const BaseCloudPtr& sourceCloud, 
 	}
 
 	pcl::KdTreeFLANN<BasePoint>::Ptr kdtree(new pcl::KdTreeFLANN<BasePoint>);
+	pcl::KdTreeFLANN<BasePoint>::Ptr kdtree1(new pcl::KdTreeFLANN<BasePoint>);
 	kdtree->setInputCloud(targetCloud);
+	kdtree1->setInputCloud(sourceCloud);
 
 	int knnSize = 2;
 	float knnDistThres = 0.1;
@@ -547,24 +585,41 @@ bool LidarMotorCalibration::FeatureAssociation(const BaseCloudPtr& sourceCloud, 
 	int sourceCloudSize = sourceCloud->size();
 	matchPairs.clear();
 	matchPairs.resize(sourceCloudSize);
-
+	std::ofstream fout(debugOptResultPath_ + "correspone_name.txt");
+	std::ofstream fout1(debugOptResultPath_ + "correspone_name1.txt");
 #pragma omp parallel for num_threads(threadNum_)
 	for (int i = 0; i < sourceCloudSize; i++) {
 		const BasePoint& sPt = sourceCloud->points[i];
-		std::vector<int> knnIdx(knnSize);
-		std::vector<float> knnDist(knnSize);
+		std::vector<int> knnIdx(knnSize), knnIdx1(knnSize);
+		std::vector<float> knnDist(knnSize), knnDist1(knnSize);
 
 		kdtree->nearestKSearch(sPt, knnSize, knnIdx, knnDist);
 
 		MotorCalibMatchPair& matchPair = matchPairs[i];
 		matchPair.sPt = sPt;
-		matchPair.tPt = targetCloud->points[knnIdx[1]];
-
-		if (knnDist.back() < knnDistThres) {
+		matchPair.tPt = targetCloud->points[knnIdx[0]];
+		kdtree1->nearestKSearch(targetCloud->points[knnIdx[0]], knnSize, knnIdx1, knnDist1);
+		if (knnIdx1[0] == i && knnDist.front() < knnDistThres)
+		{
 			matchPair.isValid = true;
 		}
+
+		/*if (knnDist.front() < knnDistThres) {
+			matchPair.isValid = true;
+		}*/
 	}
 
+
+	for (int i = 0; i < matchPairs.size(); ++i) {
+		const MotorCalibMatchPair& pair = matchPairs[i];
+		if (!pair.isValid) {
+			continue;
+		}
+		fout << pair.sPt.x << " " << pair.sPt.y << " " << pair.sPt.z << " " << i << std::endl;
+		fout1 << pair.tPt.x << " " << pair.tPt.y << " " << pair.tPt.z << " " << i << std::endl;
+	}
+	fout.close();
+	fout1.close();
 	return !matchPairs.empty();
 }
 
@@ -738,6 +793,7 @@ bool LidarMotorCalibrationConfig::LoadConfigFile(const std::string& path) {
 		std::vector<double> dp;
 		GetData(motorIntriNode["alpha1"], motorCalibParam->alpha1);
 		GetData(motorIntriNode["alpha2"], motorCalibParam->alpha2);
+		GetData(motorIntriNode["alpha3"], motorCalibParam->alpha3);
 		GetData(motorIntriNode["dp"], dp);
 		if (dp.size() == 3) {
 			motorCalibParam->dP << dp[0], dp[1], dp[2];

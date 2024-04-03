@@ -23,6 +23,7 @@ namespace sc {
 		motorParam2Ptr_ = std::make_shared<MotorCalibrationParam2>();
 		motorParam2Ptr_->qAlphaX = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha1, Eigen::Vector3d::UnitX()));
 		motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitY()));
+		motorParam2Ptr_->qAlphaZ = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha3, Eigen::Vector3d::UnitZ()));
 		motorParam2Ptr_->dP = intrinsicParam->dP;
 		motorAngleCorrectParamPtr_.reset(new MotorAngleCorrectParam);
 	}
@@ -41,6 +42,7 @@ void MotorManager::SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsic
 	motorParam2Ptr_ = std::make_shared<MotorCalibrationParam2>();
 	motorParam2Ptr_->qAlphaX = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha1, Eigen::Vector3d::UnitX()));
 	motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitY()));
+	motorParam2Ptr_->qAlphaZ = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitZ()));
 	motorParam2Ptr_->dP = intrinsicParam->dP;
 	motorParam2Ptr_->startAngle = intrinsicParam->startAngle;
 
@@ -350,11 +352,13 @@ bool MotorManager::SaveCalibrationResults2(const std::string& rootDir) {
 	// 要把标定结果同步更新到motorParam2Ptr_的两个四元数和三个平移量
 	motorParam2Ptr_->qAlphaX = Eigen::Quaterniond(Eigen::AngleAxisd(motorParamPtr_->alpha1, Eigen::Vector3d::UnitX()));
 	motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(motorParamPtr_->alpha2, Eigen::Vector3d::UnitY()));
+	motorParam2Ptr_->qAlphaZ = Eigen::Quaterniond(Eigen::AngleAxisd(motorParamPtr_->alpha3, Eigen::Vector3d::UnitZ()));
 	motorParam2Ptr_->dP = motorParamPtr_->dP;
 	ifs1 << std::fixed << std::setprecision(6);
 	ifs2 << std::fixed << std::setprecision(6);
 	ifs1 << "alpha1: " << motorParamPtr_->alpha1 * RAD2DEG << std::endl;
 	ifs1 << "alpha2: " << motorParamPtr_->alpha2 * RAD2DEG << std::endl;
+	ifs1 << "alpha3: " << motorParamPtr_->alpha3 * RAD2DEG << std::endl;
 	ifs1 << "dp: [" << motorParamPtr_->dP[0] << ", " << motorParamPtr_->dP[1]
 		<< ", " << motorParamPtr_->dP[2] << "]" << std::endl;
 

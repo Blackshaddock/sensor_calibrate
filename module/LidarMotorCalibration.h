@@ -86,6 +86,12 @@ private:
 	bool ExtractMatchingPairs(BaseCloudPtr& fullCloud, const std::vector<int>& calibIdVec,
 							  MotorCalibMatchPairs& matchPairs, bool keepLarge0 = false);
 
+
+	// icp获取同名点
+	bool GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud,
+		MotorCalibMatchPairs& matchPairs);
+
+
 	// 特征关联
 	bool FeatureAssociation(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, 
 							MotorCalibMatchPairs& matchPairs);

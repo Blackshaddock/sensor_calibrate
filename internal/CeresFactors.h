@@ -392,6 +392,7 @@ struct LidarMotorCalibFactor4geosun
 		//Eigen::Map<const Vec3T> dP(dp);				// 待优化编码器三轴平移修正量
 		QuaT qAlphaX(Eigen::AngleAxis<T>(alphaX[0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
 		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
+		
 		Eigen::Map<const Vec3T> dP(dp);
 		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
@@ -408,10 +409,10 @@ struct LidarMotorCalibFactor4geosun
 		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
 
 		CeresHelper<T>::CorrectPoint4geosun(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
-			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, sCorrectAngle, sPose_);
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY,  dP, sCorrectAngle, sPose_);
 
 		CeresHelper<T>::CorrectPoint4geosun(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
-			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, tPose_);
+			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY,  dP, tCorrectAngle, tPose_);
 
 		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
 		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);
@@ -424,8 +425,9 @@ struct LidarMotorCalibFactor4geosun
 		using QuaT = Eigen::Quaternion<T>;
 
 		QuaT qAlphaX(Eigen::AngleAxis<T>(parameters[0][0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
-		QuaT qAlphaY(Eigen::AngleAxis<T>(parameters[1][0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
-		Eigen::Map<const Vec3T> dP(parameters[2]);									// 待优化编码器三轴平移修正量
+		QuaT qAlphaY(Eigen::AngleAxis<T>(parameters[1][0], Vec3T::UnitY()));
+		QuaT qAlphaZ(Eigen::AngleAxis<T>(parameters[2][0], Vec3T::UnitZ()));		// 待优化编码器Z轴修正角转四元数
+		Eigen::Map<const Vec3T> dP(parameters[3]);									// 待优化编码器三轴平移修正量
 
 		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
@@ -442,7 +444,7 @@ struct LidarMotorCalibFactor4geosun
 
 		// 这里在debug优化禁用编译时，会报错
 		CeresHelper<T>::CorrectPoint4geosun(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
-			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, sCorrectAngle, sPose_);
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, sCorrectAngle, sPose_);
 
 		
 		CeresHelper<T>::CorrectPoint4geosun(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),

@@ -48,7 +48,7 @@ public:
 
 	static void CorrectPoint4geosun(const T* pointGlobal, const T* pointGlobalNormal,
 		T* pointGlobalCorrect, T* pointGlobalNormalCorrect,
-		const QuaT& qAlphaX, const QuaT& qAlphaY, const Vec3T& dP,
+		const QuaT& qAlphaX, const QuaT& qAlphaY,  const Vec3T& dP,
 		const T angleCorrect, const PoseD& pose) {
 		Eigen::Map<const Vec3T> ptGlobal(pointGlobal);
 		Eigen::Map<const Vec3T> ptGlobalN(pointGlobalNormal);
