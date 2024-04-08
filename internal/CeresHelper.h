@@ -45,6 +45,32 @@ public:
 		ptGlobalNCorrect = dQ * ptLocalN;
 	}
 
+	static void CorrectPoint4geosun2(const T* pointGlobal, const T* pointGlobalNormal,
+		T* pointGlobalCorrect, T* pointGlobalNormalCorrect,
+		const QuaT& qAlphaX, const QuaT& qAlphaY, const Vec3T& dP,
+		const T angleCorrect, const T* lidarIntrAngle, const PoseD& pose) {
+		Eigen::Map<const Vec3T> ptGlobal(pointGlobal);
+		Eigen::Map<const Vec3T> ptGlobalN(pointGlobalNormal);
+		Eigen::Map<Vec3T> ptGlobalCorrect(pointGlobalCorrect);
+		Eigen::Map<Vec3T> ptGlobalNCorrect(pointGlobalNormalCorrect);
+		QuaT qAngleZ(Eigen::AngleAxis<T>(angleCorrect, Vec3T::UnitZ()));
+
+		Vec3T ptLocal = pose.q.cast<T>() * ptGlobal + pose.p.cast<T>();
+		Vec3T ptLocalN = pose.q.cast<T>() * ptGlobalN;
+		Vec3T ptLocalInfo, ptLocalCorrect;
+
+		GetPointInfo(ptLocal.data(), ptLocalInfo.data());
+		CorrectPointUseLidarIntrParam(ptLocalInfo.data(), lidarIntrAngle, ptLocalCorrect.data());
+
+		// 这是原本的写法
+		//ptGlobalCorrect = qAngleY * (qAlphaZ * qAlphaX * ptLocalCorrect + dP);
+
+		QuaT dQ = qAngleZ * qAlphaY * qAlphaX;
+		ptGlobalCorrect = dQ * ptLocalCorrect + qAngleZ * dP;
+		ptGlobalNCorrect = dQ * ptLocalN;
+	}
+
+
 
 	static void CorrectPoint4geosun(const T* pointGlobal, const T* pointGlobalNormal,
 		T* pointGlobalCorrect, T* pointGlobalNormalCorrect,
@@ -67,15 +93,41 @@ public:
 		ptGlobalNCorrect = dQ * ptLocalN;
 	}
 
+
+	static void CorrectPoint4geosun4(const T* pointGlobal, const T* pointGlobalNormal,
+		T* pointGlobalCorrect, T* pointGlobalNormalCorrect,
+		const QuaT& qAlphaX, const QuaT& qAlphaY, const Vec3T& dP,
+		const T angleCorrect, const T horizonCorrect, const PoseD& pose) {
+		Eigen::Map<const Vec3T> ptGlobal(pointGlobal);
+		Eigen::Map<const Vec3T> ptGlobalN(pointGlobalNormal);
+		Eigen::Map<Vec3T> ptGlobalCorrect(pointGlobalCorrect);
+		Eigen::Map<Vec3T> ptGlobalNCorrect(pointGlobalNormalCorrect);
+		QuaT qAngleZ(Eigen::AngleAxis<T>(angleCorrect, Vec3T::UnitZ()));
+
+		Vec3T ptLocal = pose.q.cast<T>() * ptGlobal + pose.p.cast<T>();
+		Vec3T ptLocalN = pose.q.cast<T>() * ptGlobalN;
+		Vec3T ptLocalInfo, ptLocalCorrect;
+		GetPointInfo(ptLocal.data(), ptLocalInfo.data());
+		CorrectPointUseLidarIntrParam(ptLocalInfo.data(), &horizonCorrect, ptLocalCorrect.data());
+
+		// 这是原本的写法
+		//ptGlobalCorrect = qAngleY * (qAlphaZ * qAlphaX * ptLocal + dP);
+
+		QuaT dQ = qAngleZ * qAlphaY * qAlphaX;
+		ptGlobalCorrect = dQ * ptLocalCorrect + qAngleZ * dP;
+		ptGlobalNCorrect = dQ * ptLocalN;
+	}
+
+
 	static void CorrectPoint2(const T* pointGlobal, const T* pointGlobalNormal,
 		T* pointGlobalCorrect, T* pointGlobalNormalCorrect,
-		const QuaT& qAlphaX, const QuaT& qAlphaZ, const Vec3T& dP,
+		const QuaT& qAlphaX, const QuaT& qAlphaY, const Vec3T& dP,
 		const T angleCorrect, const T* lidarIntrAngle, const PoseD& pose) {
 		Eigen::Map<const Vec3T> ptGlobal(pointGlobal);
 		Eigen::Map<const Vec3T> ptGlobalN(pointGlobalNormal);
 		Eigen::Map<Vec3T> ptGlobalCorrect(pointGlobalCorrect);
 		Eigen::Map<Vec3T> ptGlobalNCorrect(pointGlobalNormalCorrect);
-		QuaT qAngleY(Eigen::AngleAxis<T>(angleCorrect, Vec3T::UnitY()));
+		QuaT qAngleZ(Eigen::AngleAxis<T>(angleCorrect, Vec3T::UnitZ()));
 
 		Vec3T ptLocal = pose.q.cast<T>() * ptGlobal + pose.p.cast<T>();
 		Vec3T ptLocalN = pose.q.cast<T>() * ptGlobalN;
@@ -87,8 +139,8 @@ public:
 		// 这是原本的写法
 		//ptGlobalCorrect = qAngleY * (qAlphaZ * qAlphaX * ptLocalCorrect + dP);
 
-		QuaT dQ = qAngleY * qAlphaZ * qAlphaX;
-		ptGlobalCorrect = dQ * ptLocalCorrect + qAngleY * dP;
+		QuaT dQ = qAngleZ * qAlphaY * qAlphaX;
+		ptGlobalCorrect = dQ * ptLocalCorrect + qAngleZ * dP;
 		ptGlobalNCorrect = dQ * ptLocalN;
 	}
 
@@ -147,6 +199,8 @@ public:
 					  << " " << pointCorrect[2] << std::endl;
 			return false;
 		}
+		/*std::cout << ptLocal[0] << " " << ptLocal[1] << " " << ptLocal[2] << " "   << pointCorrect[0] << " " << pointCorrect[1] << " " << pointCorrect[2] << " " << pointInfo[0] <<
+			" " << pointInfo[1] << " " << pointInfo[2]  <<  std::endl;*/
 		return true;
 	}
 

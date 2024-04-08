@@ -382,7 +382,7 @@ struct LidarMotorCalibFactor4geosun
 		: matchPair_(pair), sPose_(sPose), tPose_(tPose), weight_(weight) {}
 
 	template <typename T>
-	bool operator()(const T* alphaX, const T* alphaY, const T* dp,
+	bool operator()(const T* alphaX, const T* alphaY,  const T* dp, 
 		 T* residuals) const {
 		using Vec3T = Eigen::Matrix<T, 3, 1>;
 		using QuaT = Eigen::Quaternion<T>;
@@ -394,15 +394,25 @@ struct LidarMotorCalibFactor4geosun
 		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
 		
 		Eigen::Map<const Vec3T> dP(dp);
+		T sRatio = T(matchPair_.sPt.angle - int(matchPair_.sPt.angle));
+		int sFrontId =int(matchPair_.sPt.angle) % 360;
+		int sBackId = int(matchPair_.sPt.angle +1) % 360;
+
+
+		T tRatio = T(matchPair_.tPt.angle - int(matchPair_.tPt.angle));
+		int  tFrontId = int(matchPair_.tPt.angle) % 360;
+		int tBackId = int(matchPair_.tPt.angle + 1) % 360;
 		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
 		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
+
 		
-		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle));
+		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle ));
 
 		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
 		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
+		
 		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle));
 
 		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
@@ -501,6 +511,288 @@ struct LidarMotorCalibFactor4geosun
 	PoseD tPose_;							// target点原始pose的逆，用于将编码器global系转到local系					// target点内插360个角度修正值的比例
 	double weight_;							// 权重
 };
+
+
+struct LidarMotorCalibFactor4geosun2 {
+	LidarMotorCalibFactor4geosun2(const MotorCalibMatchPair& pair, const PoseD& sPose,
+		const PoseD& tPose, const double sRatio, const double tRatio,
+		const std::vector<int>& idVec,  const double weight)
+		: matchPair_(pair), sPose_(sPose), tPose_(tPose),
+		sRatio_(sRatio), tRatio_(tRatio), idVec_(idVec), weight_(weight) {
+		
+	}
+
+	template <typename T>
+	bool operator()(const T* alphaX, const T* alphaY, const T* dp, const T* angleCorrectVec,
+		T* residuals) const {
+		using Vec3T = Eigen::Matrix<T, 3, 1>;
+		using QuaT = Eigen::Quaternion<T>;
+		QuaT qAlphaX(Eigen::AngleAxis<T>(alphaX[0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
+		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
+
+		Eigen::Map<const Vec3T> dP(dp);
+	
+
+		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
+		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
+		T sDeltAngle = (T(1.0) - T(sRatio_)) * angleCorrectVec[idVec_[0]] + T(sRatio_) * angleCorrectVec[idVec_[1]];
+
+		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle) - sDeltAngle);
+
+		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
+		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
+		T tDeltAngle = (T(1.0) - T(tRatio_)) * angleCorrectVec[idVec_[2]] + T(tRatio_) * angleCorrectVec[idVec_[3]];
+		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle) - tDeltAngle);
+
+		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
+		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
+
+		CeresHelper<T>::CorrectPoint4geosun(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, sCorrectAngle, sPose_);
+
+		CeresHelper<T>::CorrectPoint4geosun(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
+			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, tPose_);
+
+		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
+		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);
+		return true;
+	}
+
+	template <typename T>
+	bool operator()(T const* const* parameters, T* residuals, T* datas) const {
+		using Vec3T = Eigen::Matrix<T, 3, 1>;
+		using QuaT = Eigen::Quaternion<T>;
+
+		QuaT qAlphaX(Eigen::AngleAxis<T>(parameters[0][0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
+		QuaT qAlphaY(Eigen::AngleAxis<T>(parameters[1][0], Vec3T::UnitY()));
+		QuaT qAlphaZ(Eigen::AngleAxis<T>(parameters[2][0], Vec3T::UnitZ()));		// 待优化编码器Z轴修正角转四元数
+		Eigen::Map<const Vec3T> dP(parameters[3]);									// 待优化编码器三轴平移修正量
+
+		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
+		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
+		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle));
+
+		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
+		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
+		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle));
+
+		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
+		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
+
+		// 这里在debug优化禁用编译时，会报错
+		CeresHelper<T>::CorrectPoint4geosun(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, sCorrectAngle, sPose_);
+
+
+		CeresHelper<T>::CorrectPoint4geosun(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
+			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, tPose_);
+
+
+		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
+		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);
+
+		datas[0] = sGlobalPt[0];
+		datas[1] = sGlobalPt[1];
+		datas[2] = sGlobalPt[2];
+		datas[3] = sGlobalPtN[0];
+		datas[4] = sGlobalPtN[1];
+		datas[5] = sGlobalPtN[2];
+
+		datas[6] = tGlobalPt[0];
+		datas[7] = tGlobalPt[1];
+		datas[8] = tGlobalPt[2];
+		datas[9] = tGlobalPtN[0];
+		datas[10] = tGlobalPtN[1];
+		datas[11] = tGlobalPtN[2];
+
+
+		datas[12] = sGlobalPtCorrect[0];
+		datas[13] = sGlobalPtCorrect[1];
+		datas[14] = sGlobalPtCorrect[2];
+		datas[15] = sGlobalPtNCorrect[0];
+		datas[16] = sGlobalPtNCorrect[1];
+		datas[17] = sGlobalPtNCorrect[2];
+
+		datas[18] = tGlobalPtCorrect[0];
+		datas[19] = tGlobalPtCorrect[1];
+		datas[20] = tGlobalPtCorrect[2];
+		datas[21] = tGlobalPtNCorrect[0];
+		datas[22] = tGlobalPtNCorrect[1];
+		datas[23] = tGlobalPtNCorrect[2];
+
+		datas[24] = residuals[0];
+		datas[25] = residuals[1];
+
+		return true;
+	}
+
+	// 分别表示：编码器 X轴四元数、Z轴四元数、三轴平移修正量、360个角度修正值关联前后两个角度值
+	static ceres::CostFunction* Create(const MotorCalibMatchPair& pair,
+		const PoseD& sPose, const PoseD& tPose, const double sRatio, const double tRatio,
+		const std::vector<int>& idVec, const double weight) {
+		return new ceres::AutoDiffCostFunction<LidarMotorCalibFactor4geosun2,
+			2, 1, 1, 3, 360>(new LidarMotorCalibFactor4geosun2(pair, sPose, tPose, sRatio, tRatio, idVec, weight));
+	}
+
+
+	MotorCalibMatchPair matchPair_;			// 匹配对，点坐标位于编码器global系
+	PoseD sPose_;							// source点原始pose的逆，用于将编码器global系转到local系
+	PoseD tPose_;							// target点原始pose的逆，用于将编码器global系转到local系
+	double sRatio_;							// source点内插360个角度修正值的比例
+	double tRatio_;							// target点内插360个角度修正值的比例
+	double weight_;							// 权重
+	std::vector<int> idVec_;				// 编码器角度插值id，4个，分别为source点front、back id 和 target点front、back id
+	
+};
+
+
+struct LidarMotorCalibFactor4geosun4 {
+	LidarMotorCalibFactor4geosun4(const MotorCalibMatchPair& pair, const PoseD& sPose,
+		const PoseD& tPose, const double sRatio, const double tRatio,
+		//const float sPtInfo[3], const float tPtInfo[3],
+		const std::vector<int>& idVec, const double weight)
+		: matchPair_(pair), sPose_(sPose), tPose_(tPose),
+		sRatio_(sRatio), tRatio_(tRatio), idVec_(idVec), weight_(weight) {
+		//std::memcpy(sPtInfo_, sPtInfo, 3 * sizeof(float));
+		//std::memcpy(tPtInfo_, tPtInfo, 3 * sizeof(float));
+	}
+
+
+	template <typename T>
+	bool operator()(const T* alphaX, const T* alphaY, const T* dp, const T* angleCorrectVec, const T* lidarhorizonCorrectVec,
+		T* residuals) const {
+		using Vec3T = Eigen::Matrix<T, 3, 1>;
+		using QuaT = Eigen::Quaternion<T>;
+		QuaT qAlphaX(Eigen::AngleAxis<T>(alphaX[0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
+		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
+
+		Eigen::Map<const Vec3T> dP(dp);
+
+
+		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
+		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
+		T sDeltAngle = (T(1.0) - T(sRatio_)) * angleCorrectVec[idVec_[0]] + T(sRatio_) * angleCorrectVec[idVec_[1]];
+
+		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle) - sDeltAngle);
+		T sCorrectLidar = lidarhorizonCorrectVec[idVec_[4]];
+		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
+		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
+		T tDeltAngle = (T(1.0) - T(tRatio_)) * angleCorrectVec[idVec_[2]] + T(tRatio_) * angleCorrectVec[idVec_[3]];
+		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle) - tDeltAngle);
+		T tCorrectLidar = lidarhorizonCorrectVec[idVec_[5]];
+		
+		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
+		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
+
+
+		CeresHelper<T>::CorrectPoint4geosun4(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, sCorrectAngle, lidarhorizonCorrectVec[idVec_[4]], sPose_);
+
+		CeresHelper<T>::CorrectPoint4geosun4(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
+			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, lidarhorizonCorrectVec[idVec_[5]], tPose_);
+
+		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
+		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);
+		return true;
+	}
+
+	template <typename T>
+	bool operator()(T const* const* parameters, T* residuals, T* datas) const {
+		using Vec3T = Eigen::Matrix<T, 3, 1>;
+		using QuaT = Eigen::Quaternion<T>;
+
+		QuaT qAlphaX(Eigen::AngleAxis<T>(parameters[0][0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
+		QuaT qAlphaY(Eigen::AngleAxis<T>(parameters[1][0], Vec3T::UnitY()));
+		QuaT qAlphaZ(Eigen::AngleAxis<T>(parameters[2][0], Vec3T::UnitZ()));		// 待优化编码器Z轴修正角转四元数
+		Eigen::Map<const Vec3T> dP(parameters[3]);									// 待优化编码器三轴平移修正量
+
+		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
+		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
+		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle));
+
+		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
+		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
+		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
+		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle));
+
+		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
+		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
+
+		// 这里在debug优化禁用编译时，会报错
+		CeresHelper<T>::CorrectPoint4geosun(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, sCorrectAngle, sPose_);
+
+
+		CeresHelper<T>::CorrectPoint4geosun(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
+			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, tPose_);
+
+
+		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
+		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);
+
+		datas[0] = sGlobalPt[0];
+		datas[1] = sGlobalPt[1];
+		datas[2] = sGlobalPt[2];
+		datas[3] = sGlobalPtN[0];
+		datas[4] = sGlobalPtN[1];
+		datas[5] = sGlobalPtN[2];
+
+		datas[6] = tGlobalPt[0];
+		datas[7] = tGlobalPt[1];
+		datas[8] = tGlobalPt[2];
+		datas[9] = tGlobalPtN[0];
+		datas[10] = tGlobalPtN[1];
+		datas[11] = tGlobalPtN[2];
+
+
+		datas[12] = sGlobalPtCorrect[0];
+		datas[13] = sGlobalPtCorrect[1];
+		datas[14] = sGlobalPtCorrect[2];
+		datas[15] = sGlobalPtNCorrect[0];
+		datas[16] = sGlobalPtNCorrect[1];
+		datas[17] = sGlobalPtNCorrect[2];
+
+		datas[18] = tGlobalPtCorrect[0];
+		datas[19] = tGlobalPtCorrect[1];
+		datas[20] = tGlobalPtCorrect[2];
+		datas[21] = tGlobalPtNCorrect[0];
+		datas[22] = tGlobalPtNCorrect[1];
+		datas[23] = tGlobalPtNCorrect[2];
+
+		datas[24] = residuals[0];
+		datas[25] = residuals[1];
+
+		return true;
+	}
+
+	// 分别表示：编码器 X轴四元数、Z轴四元数、三轴平移修正量、360个角度修正值关联前后两个角度值
+	static ceres::CostFunction* Create(const MotorCalibMatchPair& pair,
+		const PoseD& sPose, const PoseD& tPose, const double sRatio, const double tRatio,
+		const std::vector<int>& idVec, const double weight) {
+		return new ceres::AutoDiffCostFunction<LidarMotorCalibFactor4geosun4,
+			2, 1, 1, 3, 360, 16>(new LidarMotorCalibFactor4geosun4(pair, sPose, tPose, sRatio, tRatio, idVec, weight));
+	}
+
+
+	MotorCalibMatchPair matchPair_;			// 匹配对，点坐标位于编码器global系
+	PoseD sPose_;							// source点原始pose的逆，用于将编码器global系转到local系
+	PoseD tPose_;							// target点原始pose的逆，用于将编码器global系转到local系
+	double sRatio_;							// source点内插360个角度修正值的比例
+	double tRatio_;							// target点内插360个角度修正值的比例
+	double weight_;							// 权重
+	std::vector<int> idVec_;				// 编码器角度插值id，4个，分别为source点front、back id 和 target点front、back id
+
+	
+};
+
+
 
 
 struct LidarCameraCalibFactor {

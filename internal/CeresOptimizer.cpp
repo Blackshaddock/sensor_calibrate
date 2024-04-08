@@ -206,6 +206,7 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 	MotorCalibrationParam::Ptr& motorIntriParamPtr = motorManagerPtr_->GetMotorIntrinsicParamPtr();
 	MotorAngleCorrectParam::Ptr& motorAngleParamPtr = motorManagerPtr_->GetMotorAngleCorrectParamPtr();
 	double* angleCorrectVec = motorAngleParamPtr->GetAngles();
+	double* lidarhorizonVec = motorAngleParamPtr->GetHorizons();
 	//double* dP = motorIntriParamPtr->dP.data();
 
 	double costSum = 0, costSum2 = 0;
@@ -237,10 +238,11 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 		}
 #endif
 		
-		if (!motorManagerPtr_->GetMotorPose4geosun(pair.sPt.angle, sPose) ||
-			!motorManagerPtr_->GetMotorPose4geosun(pair.tPt.angle, tPose)) {
+		if (!motorManagerPtr_->GetMotorPoseInfo4geosun(pair.sPt.angle, sPose, sFrontId, sBackId, sRatio, configPtr_->optimizeMotorAngleParam) ||
+			!motorManagerPtr_->GetMotorPoseInfo4geosun(pair.tPt.angle, tPose, tFrontId, tBackId, tRatio, configPtr_->optimizeMotorAngleParam)) {
 			continue;
 		}
+		
 		sAngle = pair.sPt.angle * DEG2RAD;
 		tAngle = pair.tPt.angle * DEG2RAD;
 
@@ -254,6 +256,36 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 		paramBlocks.push_back(&motorIntriParamPtr->alpha1);
 		paramBlocks.push_back(&motorIntriParamPtr->alpha2);
 		paramBlocks.push_back(motorIntriParamPtr->dP.data());
+		if (configPtr_->optimizeMotorAngleParam)
+		{
+			paramBlocks.push_back(angleCorrectVec);
+			angleCorrectIdVec.push_back(sFrontId);
+			angleCorrectIdVec.push_back(sBackId);
+			angleCorrectIdVec.push_back(tFrontId);
+			angleCorrectIdVec.push_back(tBackId);
+			if (configPtr_->optimizeLidarIntrinsicParam)
+			{
+				paramBlocks.push_back(lidarhorizonVec);
+				angleCorrectIdVec.push_back(pair.sPt.ring);
+				angleCorrectIdVec.push_back(pair.tPt.ring);
+				auto func = LidarMotorCalibFactor4geosun4::Create(pair, sPose, tPose, sRatio, tRatio, angleCorrectIdVec, 1.0);
+
+				problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
+				//problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
+			}
+			else {
+				auto func = LidarMotorCalibFactor4geosun2::Create(pair, sPose, tPose, sRatio, tRatio, angleCorrectIdVec, 1.0);
+				problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
+			}
+			
+		}
+		else {
+			auto func = LidarMotorCalibFactor4geosun::Create(pair, sPose, tPose, 1.0);
+			
+			problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
+			//problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
+		}
+		
 
 
 		
@@ -281,13 +313,8 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 			tRatio, angleCorrectIdVec, ringIdVec, 1.0);
 #endif // DEBUG
 
-		auto func = LidarMotorCalibFactor4geosun::Create(pair, sPose, tPose,1.0);
-
-		problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
-		problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
-		//LidarMotorCalibFactor4geosun lmcf(pair, sPose, tPose, 1.0);
-		//double res[2], datas[30];
-		//lmcf.operator()(paramBlocks.data(), res, datas);
+		
+		
 #ifdef lvtu
 		// 调试ceres内部优化点位是否正常，优化残差是否符合预期
 		if (configPtr_->debugFlag) {

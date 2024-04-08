@@ -44,7 +44,7 @@ struct LidarIntrinsicParam {
 		while (std::getline(ifs, line)) {
 			std::stringstream ss(line);
 			std::vector<std::string> elems;
-			while (std::getline(ss, elem)) {
+			while (std::getline(ss, elem, ',')) {
 				elems.emplace_back(elem);
 			}
 
@@ -85,6 +85,7 @@ struct BagManagerConfig : public ParamterBase {
 	std::string bagPath;						// bag 路径
 	std::string srcptsPath;						// 原始数据路径
 	std::string motorPath;						// 编码器数据路径
+	std::string lidarintrisicPath;              // 激光器内参数据路径
 	std::vector<std::string> callbackTopics;	// 回调topic
 	float minDetectDist;						// 激光器最小扫描距离
 	float maxDetectDist;						// 激光器最大扫描距离

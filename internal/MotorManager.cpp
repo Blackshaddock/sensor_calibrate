@@ -12,7 +12,7 @@ namespace sc {
 
 	MotorManager::~MotorManager() {}
 
-	void MotorManager::SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsicParam)
+	void MotorManager::SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsicParam, const MotorAngleCorrectParam::Ptr& angleParam)
 	{
 		// 将config读入的编码器内参角度转弧度
 		motorParamPtr_ = intrinsicParam;
@@ -25,7 +25,10 @@ namespace sc {
 		motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitY()));
 		motorParam2Ptr_->qAlphaZ = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha3, Eigen::Vector3d::UnitZ()));
 		motorParam2Ptr_->dP = intrinsicParam->dP;
-		motorAngleCorrectParamPtr_.reset(new MotorAngleCorrectParam);
+		motorAngleCorrectParamPtr_ = angleParam;
+		motorAngleCorrectParamPtr_->LoadAngleCorrectionFile();
+		motorAngleCorrectParamPtr_->LoadlidarCorrectionFile();
+		//motorAngleCorrectParamPtr_.reset(new MotorAngleCorrectParam);
 	}
 
 void MotorManager::SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsicParam,
@@ -177,18 +180,43 @@ bool MotorManager::GetMotorPose(const double time, PoseD& pose, double& angle) {
 // Dq' = Qy * Qz * Qx
 // Dp' = Qy * Dp
 // Pg = Dq' * Pl + Dp'
-bool MotorManager::GetMotorPose4geosun(double angle,PoseD& pose)
+bool MotorManager::GetMotorPose4geosun(double angle,PoseD& pose, bool UseMotorAngleCorr)
 {
-	angle = angle * DEG2RAD;
-	Eigen::Quaterniond qZ(Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()));
+	double angleUse;
+	if (UseMotorAngleCorr)
+	{
+		int frontId, backId;
+		double ratio;
+		double angleCorrect = motorAngleCorrectParamPtr_->Slerp(angle, frontId, backId, ratio);
+		angleUse = angle - angleCorrect;
+	}
+	else
+	{
+		angleUse = angle;
+	}
+	angleUse = angleUse * DEG2RAD;
+	Eigen::Quaterniond qZ(Eigen::AngleAxisd(angleUse, Eigen::Vector3d::UnitZ()));
 	pose.q = qZ*motorParam2Ptr_->qAlphaY * motorParam2Ptr_->qAlphaX ;
-	/*Eigen::Matrix3d Rz(qZ);
-	std::cout << Rz(0, 0) << " " << Rz(0, 1) << " " << Rz(0, 2) <<
-		" " << Rz(1, 0) << " " << Rz(1, 1) << " " << Rz(1, 2) <<
-		" " << Rz(2, 0) << " " << Rz(2, 1) << " " << Rz(2, 2) << std::endl;
-	std::cout << cos(angle) << " " << sin(angle) << " " << 0 <<
-		" " << -sin(angle) << " " << cos(angle) << 0 <<
-		" " << 0 << 0 << 1 << " " << angle << std::endl;*/
+	pose.p = qZ * motorParam2Ptr_->dP;
+	return true;
+}
+
+bool MotorManager::GetMotorPoseInfo4geosun(double angle, PoseD& pose, int& frontId, int& backId, double& ratio, bool UseMotorAngleCorr)
+{
+	double angleUse;
+	if (UseMotorAngleCorr)
+	{
+		double angleCorrect = motorAngleCorrectParamPtr_->Slerp(angle, frontId, backId, ratio);
+		
+		angleUse = angle - angleCorrect;
+	}
+	else
+	{
+		angleUse = angle;
+	}
+	angleUse = angleUse * DEG2RAD;
+	Eigen::Quaterniond qZ(Eigen::AngleAxisd(angleUse, Eigen::Vector3d::UnitZ()));
+	pose.q = qZ * motorParam2Ptr_->qAlphaY * motorParam2Ptr_->qAlphaX;
 	pose.p = qZ * motorParam2Ptr_->dP;
 	return true;
 }
@@ -341,9 +369,9 @@ bool MotorManager::SaveCalibrationResults(const std::string& rootDir) {
 bool MotorManager::SaveCalibrationResults2(const std::string& rootDir) {
 	std::string motorIntriPath = rootDir + "motor_intrinsic_param.txt";
 	std::string motorAnglePath = rootDir + "motor_angle_correction_param.txt";
-
-	std::ofstream ifs1(motorIntriPath), ifs2(motorAnglePath);
-	if (!ifs1.is_open() || !ifs2.is_open()) {
+	std::string lidarHorizonPath = rootDir + "lidar_intrisic_param.txt";
+	std::ofstream ifs1(motorIntriPath), ifs2(motorAnglePath), ifs3(lidarHorizonPath);
+	if (!ifs1.is_open() || !ifs2.is_open() || !ifs3.is_open()) {
 		LOG(INFO) << "Save calibration result failed: " << rootDir;
 		return false;
 	}
@@ -368,8 +396,12 @@ bool MotorManager::SaveCalibrationResults2(const std::string& rootDir) {
 		ifs2 << angles[i] << std::endl;
 		//ifs2 << i << ", " << angles[i] << std::endl;
 	}
-
-	ifs1.close(), ifs2.close();
+	double* lidarhorizons = motorAngleCorrectParamPtr_->GetHorizons();
+	for (int i = 0; i < 16; i++)
+	{
+		ifs3 << lidarhorizons[i] << std::endl;
+	}
+	ifs1.close(), ifs2.close(), ifs3.close();
 	return true;
 }
 

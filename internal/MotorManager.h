@@ -55,9 +55,17 @@ public:
 
 	MotorAngleCorrectParam() {
 		angles.resize(360, 0.);
+		lidarhorizons.resize(16, 0.);
 	}
 
-	double* GetAngles() { return angles.data(); }
+	double* GetAngles() { 
+		std::cout <<"angles num: " <<  angles.size() << std::endl;
+		return angles.data(); }
+
+	double* GetHorizons() {
+		std::cout << "lidarhorizons num: " << lidarhorizons.size() << std::endl;
+		return lidarhorizons.data();
+	}
 
 	double Slerp(const double angle, int& frontId, int& backId, double& ratio) const {
 		double absAngle = std::abs(angle);
@@ -75,8 +83,10 @@ public:
 
 	std::string& GetAngleCorrectionFile() { return angleCorrectionFile; }
 
-	bool LoadAngleCorrectionFile() {
-		std::ifstream ifs(angleCorrectionFile);
+	std::string& GetLidarCorrectionFile() { return lidarCorrectionFile; }
+
+	bool LoadlidarCorrectionFile() {
+		std::ifstream ifs(lidarCorrectionFile);
 		if (!ifs.is_open()) {
 			return false;
 		}
@@ -91,9 +101,31 @@ public:
 		return countId == 360;
 	}
 
+
+	bool LoadAngleCorrectionFile() {
+		std::ifstream ifs(angleCorrectionFile);
+		if (!ifs.is_open()) {
+			return false;
+		}
+
+		int countId = 0;
+		std::string line;
+		while (std::getline(ifs, line)) {
+			angles[countId] = std::stod(line);
+			countId++;
+		}
+
+		return countId == 16;
+	}
+
+
+
 private:
 	std::vector<double> angles;			// 度
 	std::string angleCorrectionFile;	// 参数文件传入
+
+	std::vector<double> lidarhorizons;
+	std::string lidarCorrectionFile;    
 };
 
 class MotorManager {
@@ -121,7 +153,7 @@ public:
 
 
 	//
-	void SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsicParam);
+	void SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsicParam, const MotorAngleCorrectParam::Ptr& angleParam);
 	// 设置编码器内参，即标定值
 	void SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsicParam, 
 						   const MotorAngleCorrectParam::Ptr& angleParam,
@@ -135,9 +167,9 @@ public:
 	bool GetMotorPose(const double time, PoseD& pose, double& angle);
 
 	//根据每个点的角度，获取对应胡pose
-	bool GetMotorPose4geosun(double angle, PoseD& pose);
+	bool GetMotorPose4geosun(double angle, PoseD& pose, bool UseMotorAngleCorr);
 
-	bool GetMotorPoseInfo4geosun(double& angle, PoseD& pose);
+	bool GetMotorPoseInfo4geosun(double angle, PoseD& pose, int& frontId, int& backId, double& ratio, bool UseMotorAngleCorr);
 
 	bool GetMotorPoseInfo(const double time, PoseD& pose, double& angle, 
 						  int& frontId, int& backId, double& ratio);

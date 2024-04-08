@@ -89,12 +89,14 @@ private:
 
 	// icp获取同名点
 	bool GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud,
-		MotorCalibMatchPairs& matchPairs);
+		const BaseCloudPtr& matchPairs);
 
 
 	// 特征关联
-	bool FeatureAssociation(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, 
+	bool FeatureAssociation(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, const BaseCloudPtr& cloudIn,
 							MotorCalibMatchPairs& matchPairs);
+
+	bool FeatureAssociation4geosun(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, const BaseCloudPtr&  sourceCloudDs, const BaseCloudPtr& targetCloudDs, const BaseCloudPtr& cloudIn,MotorCalibMatchPairs& matchPairs);
 
 	// 保存优化结果
 	bool SaveOptimizeResult();

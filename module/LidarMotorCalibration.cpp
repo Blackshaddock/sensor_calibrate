@@ -8,8 +8,9 @@
 #include <pcl/io/ply_io.h>		// 仅用于调试，后续可以取消
 #include <pcl/common/impl/io.hpp>
 #include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/registration/icp.h>
+#include <pcl/registration/gicp.h>
 #include <pcl/common/pca.h>
+#include <pcl/filters/voxel_grid.h>
 #include <omp.h>
 
 #ifdef USEPLANEDETECT
@@ -114,9 +115,10 @@ bool LidarMotorCalibration::DataPrepare4geosun()
 {
 	bagManagerPtr_.reset(new BagManager(configPtr_->bagManagerCfgPtr));
 	bagManagerPtr_->lidarIntrisincParamPtr_ = std::make_shared<LidarIntrinsicParam>(16);
+	bagManagerPtr_->lidarIntrisincParamPtr_->Load(configPtr_->bagManagerCfgPtr->lidarintrisicPath);
 	motorManagerPtr_.reset(new MotorManager);
 	//motorManagerPtr_ = bagManagerPtr_->GetMotorManager();
-	motorManagerPtr_->SetMotorParameter(configPtr_->motorCalibParam);
+	motorManagerPtr_->SetMotorParameter(configPtr_->motorCalibParam, configPtr_->motorAngleCorrectParamPtr);
 	
 	PlyIo fullOriginPly(debugOptDataPath_ + "full_cloud_origin.ply");
 
@@ -133,17 +135,20 @@ bool LidarMotorCalibration::DataPrepare4geosun()
 		}
 		sscanf(tmp.c_str(), " %f %f %f %f %f %d %f", &tmp_pt.x, &tmp_pt.y, &tmp_pt.z, &tmp_pt.intensity, &tmp_pt.time, &tmp_pt.ring, &tmp_pt.angle);
 		//将bag解析的原始坐标系下的点云数据转到适配编码器的局部坐标系
-		if (abs(tmp_pt.x) < 1 || abs(tmp_pt.y) < 1 || abs(tmp_pt.z) < 1 || abs(tmp_pt.x) > 100 || abs(tmp_pt.y) > 100 || abs(tmp_pt.z) > 100)
+		if (abs(tmp_pt.x) < 0.1 || abs(tmp_pt.y) < 0.1 || abs(tmp_pt.z) < 0.1 || abs(tmp_pt.x) > 100 || abs(tmp_pt.y) > 100 || abs(tmp_pt.z) > 100)
 		{
 			continue;
 		}
 		tmp_pt.normal_x = tmp_pt.x;
 		tmp_pt.normal_y = tmp_pt.y;
 		tmp_pt.normal_z = tmp_pt.z;
+		
 		//tmp_pt.angle *= -1.0;
 		ConvertToMotorLocalCoordinate(tmp_pt);
 		lidarFrameLocal.cloudPtr->push_back(tmp_pt);
 	}
+	// 根据读入的雷达内参，矫正数据 
+	CorrectPointUseLidarIntrParam(lidarFrameLocal.cloudPtr);
 	//根据编码器角度观测值，结合编码器内参、编码器角度修正初值，将编码器局部坐标系点云转到全局坐标系
 	ConvertToMotorGlobalCoordinate4geosun(lidarFrameLocal.cloudPtr, lidarFrameGlobal.cloudPtr);
 	fullOriginPly.SetOnePatch(*lidarFrameGlobal.cloudPtr);
@@ -208,8 +213,9 @@ bool LidarMotorCalibration::DataPrepare() {
 }
 
 bool LidarMotorCalibration::CorrectPointUseLidarIntrParam(BaseCloudPtr& cloud) {
-	double** lidarIntrParam = bagManagerPtr_->GetLidarIntrParam()->GetParam();
-
+	//double** lidarIntrParam = bagManagerPtr_->GetLidarIntrParam()->GetParam();
+	double *lidarIntrParam = motorManagerPtr_->GetMotorAngleCorrectParamPtr()->GetHorizons();
+	
 	BaseCloudPtr correctCloud(new BaseCloud);
 
 	for (BasePoint& p : cloud->points) {
@@ -223,8 +229,9 @@ bool LidarMotorCalibration::CorrectPointUseLidarIntrParam(BaseCloudPtr& cloud) {
 
 		// 根据当前点所属ring，得到读入的初始激光器内参修正量，修正原始点
 		CeresHelper<double>::CorrectPointUseLidarIntrParam(
-			info.data(), lidarIntrParam[p.ring], pCorrect.data());
-
+			info.data(), &lidarIntrParam[p.ring], pCorrect.data());
+		/*std::cout << p.x << " " << p.y << " " << p.z << " "  << unsigned(p.ring) <<" " << pCorrect[0] << " " << pCorrect[1] << " " << pCorrect[2] << " " << info[0] <<
+			" " << info[1] << " " << info[2] <<" " <<  lidarIntrParam[p.ring] <<  std::endl;*/
 		p.x = pCorrect[0];
 		p.y = pCorrect[1];
 		p.z = pCorrect[2];
@@ -313,12 +320,12 @@ bool LidarMotorCalibration::ConvertToMotorGlobalCoordinate4geosun(const BaseClou
 
 		PoseD curPose;		// 编码器pose
 		double angle = curPt.angle;	// 编码器角度
-		if (!motorManagerPtr_->GetMotorPose4geosun(angle, curPose )) {
+		
+		if (!motorManagerPtr_->GetMotorPose4geosun(angle, curPose, configPtr_->optimizeMotorAngleCorrParam)) {
 			LOG(INFO) << "Motor slerp pose error: " << curPt.time;
-			return false;
+				return false;
 		}
-
-		//curPt.angle = angle * RAD2DEG;
+		
 
 		transPt = curPt;	// 保留原始点所有属性
 		transPt.getVector3fMap() = curPose.q.cast<float>() * curPt.getVector3fMap() +
@@ -399,38 +406,26 @@ bool LidarMotorCalibration::ExtractMatchingPairs(BaseCloudPtr& fullCloud, const 
 
 	// 固定比例抽稀
 	BaseCloudPtr sourceCloudDs(new BaseCloud), targetCloudDs(new BaseCloud);
+
 	int remainSize = 100000;
-	int step = sourceCloud->size() / remainSize;
+	int step = std::ceil(sourceCloud->size() / remainSize) +1;
 	for (int i = 0; i < sourceCloud->size(); i = i + step) {
 		sourceCloudDs->push_back(sourceCloud->points[i]);
 	}
 	for (int i = 0; i < targetCloud->size(); i = i + step) {
 		targetCloudDs->push_back(targetCloud->points[i]);
 	}
-	sourceCloud = sourceCloudDs;
-	targetCloud = targetCloudDs;
+	/*sourceCloud = sourceCloudDs;
+	targetCloud = targetCloudDs;*/
 
-	//if (fullCloud == nullptr || fullCloud->empty()) {
-	//	fullCloud.reset(new BaseCloud);
-	//	pcl::io::loadPLYFile(debugOptDataPath_ + "full_cloud_origin.ply", *fullCloud);
-	//	if (fullCloud->empty()) {
-	//		LOG(INFO) << "Please run datapretrate first.";
-	//		return false;
-	//	}
-	//}
-	//// 保留固定点数
-	//int remainSize = 100000;
-	//int step = fullCloud->size() / remainSize;
-	//sourceCloud->clear(), targetCloud->clear();
-	//for (int i = 0; i < fullCloud->size(); i = i + step) {
-	//	sourceCloud->push_back(fullCloud->points[i]);
-	//	targetCloud->push_back(fullCloud->points[i]);
-	//}
 	
 	// 计算法向，统计近邻点id，这个id会在平面检测时会用到
 	std::vector<std::vector<int>> indexes1, indexes2;
+	std::vector<std::vector<int>> indexes3, indexes4;
 	GetNormal(sourceCloud, indexes1);
 	GetNormal(targetCloud, indexes2);
+	GetNormal(sourceCloudDs, indexes3);
+	GetNormal(targetCloudDs, indexes3);
 
 #ifdef USEPLANEDETECT
 	// 若使用平面检测库，则用拟合平面后的点做特征关联
@@ -439,43 +434,51 @@ bool LidarMotorCalibration::ExtractMatchingPairs(BaseCloudPtr& fullCloud, const 
 #endif // USEPLANEDETECT
 
 	//ICP配准获取同名点索引，R、T不用进行优化
-	/*if (!GetCorrespondPointIndex(sourceCloud, targetCloud,matchPairs))
+	BaseCloudPtr outCloud(new BaseCloud);
+	if (!GetCorrespondPointIndex(sourceCloud, targetCloud, outCloud))
 	{
-		return false;
-	}*/
-
-	// 提取匹配对
-	if (!FeatureAssociation(sourceCloud, targetCloud, matchPairs)) {
 		return false;
 	}
 
+	// 提取匹配对
+	/*if (!FeatureAssociation(sourceCloud, targetCloud, outCloud, matchPairs)) {
+		return false;
+	}*/
+
+	if (!FeatureAssociation4geosun(sourceCloud, targetCloud, sourceCloudDs, targetCloudDs,outCloud, matchPairs)) {
+		return false;
+	}
+	
 	if (debugFlag_) {
 		PlyIo::SavePLYFileBinary(debugTestPath_ + "source_cloud.ply", *sourceCloud);
 		PlyIo::SavePLYFileBinary(debugTestPath_ + "target_cloud.ply", *targetCloud);
+		PlyIo::SavePLYFileBinary(debugTestPath_ + "out_cloud.ply", *outCloud);
 	}
 	return true;
 }
 
-bool LidarMotorCalibration::GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, MotorCalibMatchPairs& matchPairs)
+bool LidarMotorCalibration::GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, const BaseCloudPtr& outCloud)
 {
 	if (sourceCloud->empty() || targetCloud->empty()) {
 		return false;
 	}
-	BaseCloudPtr outCloud(new BaseCloud);
-	pcl::IterativeClosestPoint<BasePoint, BasePoint>::Ptr icp(new pcl::IterativeClosestPoint<BasePoint, BasePoint>);
+	//pcl::IterativeClosestPoint<BasePoint, BasePoint>::Ptr icp(new pcl::IterativeClosestPoint<BasePoint, BasePoint>);
+	pcl::GeneralizedIterativeClosestPoint<BasePoint, BasePoint>::Ptr icp(new pcl::GeneralizedIterativeClosestPoint<BasePoint, BasePoint>);
 	icp->setInputSource(sourceCloud);
-	icp->setInputSource(targetCloud);
-	icp->setMaximumIterations(50);
+	icp->setInputTarget(targetCloud);
+	/*icp->setMaximumIterations(50);
 	icp->setMaxCorrespondenceDistance(0.2);
 	icp->setTransformationEpsilon(1e-8);
-	icp->setEuclideanFitnessEpsilon(0.01);
+	icp->setEuclideanFitnessEpsilon(0.01);*/
 	
 	icp->align(*outCloud);
 	if (!icp->hasConverged())
 	{
 		LOG(INFO) << "ICP Converge: 0"  ;
-		return true;
+		return false;
 	}
+	std::cout << icp->getFitnessScore() << std::endl;
+	//pcl::transformPointCloud(*sourceCloud, *outCloud, icp->getFinalTransformation());
 	
 	return true;
 }
@@ -508,7 +511,6 @@ bool LidarMotorCalibration::ExtractCalibrationCloud(BaseCloudPtr& fullCloud, Bas
 	}
 	else {
 		for (const BasePoint& pt : fullCloud->points) {
-			
 			// 这里临时用normal属性存储原始坐标系下的点
 			if (pt.normal_x > 0) {
 				sourceCloud->push_back(pt);
@@ -568,9 +570,9 @@ void LidarMotorCalibration::GetNormal(BaseCloudPtr &cloud, std::vector<std::vect
 	}
 }
 
-bool LidarMotorCalibration::FeatureAssociation(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud,
+bool LidarMotorCalibration::FeatureAssociation(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, const BaseCloudPtr& cloudIn,
 											   MotorCalibMatchPairs& matchPairs) {
-	if (sourceCloud->empty() || targetCloud->empty()) {
+	if (sourceCloud->empty() || targetCloud->empty() || cloudIn->empty()) {
 		return false;
 	}
 
@@ -580,7 +582,7 @@ bool LidarMotorCalibration::FeatureAssociation(const BaseCloudPtr& sourceCloud, 
 	kdtree1->setInputCloud(sourceCloud);
 
 	int knnSize = 2;
-	float knnDistThres = 0.1;
+	float knnDistThres = 0.05;
 
 	int sourceCloudSize = sourceCloud->size();
 	matchPairs.clear();
@@ -615,8 +617,63 @@ bool LidarMotorCalibration::FeatureAssociation(const BaseCloudPtr& sourceCloud, 
 		if (!pair.isValid) {
 			continue;
 		}
-		fout << pair.sPt.x << " " << pair.sPt.y << " " << pair.sPt.z << " " << i << std::endl;
-		fout1 << pair.tPt.x << " " << pair.tPt.y << " " << pair.tPt.z << " " << i << std::endl;
+		fout << pair.sPt.x << " " << pair.sPt.y << " " << pair.sPt.z << " " << i <<" " << pair.sPt.angle << " " << pair.sPt.time <<  std::endl;
+		fout1 << pair.tPt.x << " " << pair.tPt.y << " " << pair.tPt.z << " " << i << " " << pair.tPt.angle << " " << pair.tPt.time << std::endl;
+	}
+	fout.close();
+	fout1.close();
+	return !matchPairs.empty();
+}
+
+bool LidarMotorCalibration::FeatureAssociation4geosun(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, const BaseCloudPtr& sourceCloudDs, const BaseCloudPtr& targetCloudDs, const BaseCloudPtr& cloudIn, MotorCalibMatchPairs& matchPairs)
+{
+	if (sourceCloud->empty() || targetCloud->empty() || sourceCloudDs->empty()) {
+		return false;
+	}
+
+	pcl::KdTreeFLANN<BasePoint>::Ptr kdtree(new pcl::KdTreeFLANN<BasePoint>);
+	pcl::KdTreeFLANN<BasePoint>::Ptr kdtree1(new pcl::KdTreeFLANN<BasePoint>);
+	kdtree->setInputCloud(targetCloud);
+	kdtree1->setInputCloud(sourceCloudDs);
+
+	int knnSize = 2;
+	float knnDistThres = 0.05;
+
+	int sourceCloudSize = sourceCloudDs->size();
+	matchPairs.clear();
+	matchPairs.resize(sourceCloudSize);
+	std::ofstream fout(debugOptResultPath_ + "correspone_name.txt");
+	std::ofstream fout1(debugOptResultPath_ + "correspone_name1.txt");
+#pragma omp parallel for num_threads(threadNum_)
+	for (int i = 0; i < sourceCloudSize; i++) {
+		const BasePoint& sPt = sourceCloudDs->points[i];
+		std::vector<int> knnIdx(knnSize), knnIdx1(knnSize);
+		std::vector<float> knnDist(knnSize), knnDist1(knnSize);
+
+		kdtree->nearestKSearch(sPt, knnSize, knnIdx, knnDist);
+
+		MotorCalibMatchPair& matchPair = matchPairs[i];
+		matchPair.sPt = sPt;
+		matchPair.tPt = targetCloud->points[knnIdx[0]];
+		kdtree1->nearestKSearch(targetCloud->points[knnIdx[0]], knnSize, knnIdx1, knnDist1);
+		if (knnIdx1[0] == i && knnDist.front() < knnDistThres)
+		{
+			matchPair.isValid = true;
+		}
+
+		/*if (knnDist.front() < knnDistThres) {
+			matchPair.isValid = true;
+		}*/
+	}
+
+
+	for (int i = 0; i < matchPairs.size(); ++i) {
+		const MotorCalibMatchPair& pair = matchPairs[i];
+		if (!pair.isValid) {
+			continue;
+		}
+		fout << pair.sPt.x << " " << pair.sPt.y << " " << pair.sPt.z << " " << i << " " << pair.sPt.angle << " " << pair.sPt.time << std::endl;
+		fout1 << pair.tPt.x << " " << pair.tPt.y << " " << pair.tPt.z << " " << i << " " << pair.tPt.angle << " " << pair.tPt.time << std::endl;
 	}
 	fout.close();
 	fout1.close();
@@ -631,9 +688,9 @@ bool LidarMotorCalibration::SaveOptimizeResult() {
 	}
 
 	// 保存激光器内参结果
-	if (!bagManagerPtr_->GetLidarIntrParam()->Save(debugOptResultPath_ + "lidar_intrisic_param.txt")) {
+	/*if (!bagManagerPtr_->GetLidarIntrParam()->Save(debugOptResultPath_ + "lidar_intrisic_param.txt")) {
 		return false;
-	}
+	}*/
 
 	LOG(INFO) << "Calibration results write to: " << debugOptResultPath_;
 	return true;
@@ -672,11 +729,14 @@ bool LidarMotorCalibration::CheckOptimizeResult() {
 
 		// 注：这里是根据当前时间戳，内插原始编码器参数下的点的编码器pose
 		// 使用这个pose的逆，可以将读入的global系下的点转到local系下
-		if (!motorManagerPtr_->GetMotorPose4geosun(pt.angle, sPoseOri)) {
+		if (!motorManagerPtr_->GetMotorPose4geosun(pt.angle, sPoseOri, false)) {
 			return false;
 		}
+
 		double sCorrectAngle = (pt.angle ) * DEG2RAD;
 		sPoseOri.SetInverse();
+		
+
 		CeresHelper<double>::CorrectPoint4geosun(ptOri, ptNOri, ptCorrect, ptNCorrect,
 			motorOptParam->qAlphaX, motorOptParam->qAlphaY,
 			motorOptParam->dP, sCorrectAngle, sPoseOri);
@@ -801,6 +861,7 @@ bool LidarMotorCalibrationConfig::LoadConfigFile(const std::string& path) {
 
 		const auto& motorAngleNode = rootNode["motor_angle_calibration_parameter"];
 		GetData(motorAngleNode["angle_correction_file"], motorAngleCorrectParamPtr->GetAngleCorrectionFile());
+		GetData(motorAngleNode["lidar_intrisic_file"], motorAngleCorrectParamPtr->GetLidarCorrectionFile());
 		GetData(motorAngleNode["calibration_laser_id"], calibLaserIdVec1);
 	}
 	catch (std::exception& exc) {

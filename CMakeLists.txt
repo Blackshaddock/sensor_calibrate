@@ -42,6 +42,10 @@ add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_S
 set_property(TARGET lidar_motor_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 target_link_libraries(lidar_motor_calib  ${3RDPARTY_LIBRARIES} planeDetect)
 
+add_executable(camera_lidar_tracker example/CameraLidarTrackExample.cpp ${INTERNAL_SRC} ${MODULE_SRC})
+set_property(TARGET camera_lidar_tracker PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
+target_link_libraries(camera_lidar_tracker  ${3RDPARTY_LIBRARIES} planeDetect)
+
 #add_executable(lidar_camera_calib example/LidarCameraCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC})
 #set_property(TARGET lidar_camera_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 #target_link_libraries(lidar_camera_calib  ${3RDPARTY_LIBRARIES} planeDetect)
