@@ -10,7 +10,7 @@ class CeresHelper {
 public:
 	typedef Eigen::Matrix<T, 3, 1>	Vec3T;
 	typedef Eigen::Quaternion<T>	QuaT;
-
+	typedef Eigen::Matrix<T, 3, 3>  Mat3T;
 	CeresHelper() = default;
 	~CeresHelper() = default;
 	
@@ -88,9 +88,9 @@ public:
 		// 这是原本的写法
 		//ptGlobalCorrect = qAngleY * (qAlphaZ * qAlphaX * ptLocal + dP);
 
-		QuaT dQ = qAngleZ * qAlphaY * qAlphaX;
-		ptGlobalCorrect = dQ * ptLocal + qAngleZ * dP;
-		ptGlobalNCorrect = dQ * ptLocalN;
+		QuaT dQ = qAlphaY * qAlphaX;
+		ptGlobalCorrect = qAlphaX * ptLocal + qAlphaY * dP;
+		ptGlobalNCorrect = qAlphaX * ptLocalN;
 	}
 
 
@@ -102,20 +102,27 @@ public:
 		Eigen::Map<const Vec3T> ptGlobalN(pointGlobalNormal);
 		Eigen::Map<Vec3T> ptGlobalCorrect(pointGlobalCorrect);
 		Eigen::Map<Vec3T> ptGlobalNCorrect(pointGlobalNormalCorrect);
-		QuaT qAngleZ(Eigen::AngleAxis<T>(angleCorrect, Vec3T::UnitZ()));
+		
 
+		QuaT qAngleZ(Eigen::AngleAxis<T>(angleCorrect, Vec3T::UnitZ()));
+		
 		Vec3T ptLocal = pose.q.cast<T>() * ptGlobal + pose.p.cast<T>();
 		Vec3T ptLocalN = pose.q.cast<T>() * ptGlobalN;
 		Vec3T ptLocalInfo, ptLocalCorrect;
+
 		GetPointInfo(ptLocal.data(), ptLocalInfo.data());
 		CorrectPointUseLidarIntrParam(ptLocalInfo.data(), &horizonCorrect, ptLocalCorrect.data());
+		
+		QuaT dQ = qAlphaY * qAlphaX;
+		ptGlobalCorrect = dQ * ptLocalCorrect + qAlphaY * dP;
+		ptGlobalNCorrect = dQ * ptLocalN;
 
 		// 这是原本的写法
 		//ptGlobalCorrect = qAngleY * (qAlphaZ * qAlphaX * ptLocal + dP);
 
-		QuaT dQ = qAngleZ * qAlphaY * qAlphaX;
+		/*QuaT dQ = qAngleZ * qAlphaY * qAlphaX;
 		ptGlobalCorrect = dQ * ptLocalCorrect + qAngleZ * dP;
-		ptGlobalNCorrect = dQ * ptLocalN;
+		ptGlobalNCorrect = dQ * ptLocalN;*/
 	}
 
 

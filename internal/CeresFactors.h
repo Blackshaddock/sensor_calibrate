@@ -526,34 +526,66 @@ struct LidarMotorCalibFactor4geosun2 {
 	bool operator()(const T* alphaX, const T* alphaY, const T* dp, const T* angleCorrectVec,
 		T* residuals) const {
 		using Vec3T = Eigen::Matrix<T, 3, 1>;
+		using Mat3T = Eigen::Matrix<T, 3, 3>;
 		using QuaT = Eigen::Quaternion<T>;
 		QuaT qAlphaX(Eigen::AngleAxis<T>(alphaX[0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
 		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
-
+		QuaT sAlphaX, sAlphaY;
+		QuaT tAlphaX, tAlphaY;
+		Mat3T matrixXY;
+		T cx = cos(alphaX[0]), sx = sin(alphaX[0]);
+		T cy = cos(alphaY[0]), sy = sin(alphaY[0]);
+		T cz = cos(T(0)), sz = sin(T(0));
+		matrixXY << cy * cz, cy* sz, -sy,
+			-cx * sz + sx * sy * cz, cx* cz + sx * sy * sz, sx* cy,
+			sx* sz + cx * sy * cz, -sx * cz + cx * sy * sx, cx* cy;
+		
+		//std::cout << matrixXY << std::endl;
 		Eigen::Map<const Vec3T> dP(dp);
 	
 
 		// source点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T sGlobalPt = matchPair_.sPt.getVector3fMap().cast<T>();
 		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
-		T sDeltAngle = (T(1.0) - T(sRatio_)) * angleCorrectVec[idVec_[0]] + T(sRatio_) * angleCorrectVec[idVec_[1]];
+		T sFrontCorrectValue, sBackCorrectValue;
+		T tFrontCorrectValue, tBackCorrectValue;
+		sFrontCorrectValue = angleCorrectVec[idVec_[0]];
+		sBackCorrectValue = angleCorrectVec[idVec_[1]];
+		
+		T sDeltAngle = (T(1.0) - T(sRatio_)) * sFrontCorrectValue + T(sRatio_) * sBackCorrectValue;
 
-		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle) - sDeltAngle);
+		T sCorrectAngle = T(-1.0)*T(DEG2RAD) * (T(matchPair_.sPt.angle) - sDeltAngle);
 
+
+		T sCcz = cos(sCorrectAngle), sCsz = sin(sCorrectAngle);
+		Mat3T smatrixZ;
+		smatrixZ << sCcz, sCsz, T(0),  -sCsz, sCcz, T(0), T(0), T(0), T(1);
+		sAlphaX = smatrixZ * matrixXY;
+		sAlphaY = smatrixZ;
 		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
 		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
-		T tDeltAngle = (T(1.0) - T(tRatio_)) * angleCorrectVec[idVec_[2]] + T(tRatio_) * angleCorrectVec[idVec_[3]];
-		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle) - tDeltAngle);
+		
+		tFrontCorrectValue = angleCorrectVec[idVec_[2]];
+		tBackCorrectValue = angleCorrectVec[idVec_[3]];
+		
+
+		T tDeltAngle = (T(1.0) - T(tRatio_)) * tFrontCorrectValue + T(tRatio_) * tBackCorrectValue;
+		T tCorrectAngle = T(-1.0)*T(DEG2RAD) * (T(matchPair_.tPt.angle) - tDeltAngle);
 
 		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
 		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
 
 		CeresHelper<T>::CorrectPoint4geosun(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
-			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, sCorrectAngle, sPose_);
+			sGlobalPtNCorrect.data(), sAlphaX, sAlphaY, dP, sCorrectAngle, sPose_);
 
+		T tCcz = cos(tCorrectAngle), tCsz = sin(tCorrectAngle);
+		Mat3T tmatrixZ;
+		tmatrixZ << tCcz, tCsz, T(0), -tCsz, tCcz, T(0), T(0), T(0), T(1);
+		tAlphaX = tmatrixZ * matrixXY;
+		tAlphaY = tmatrixZ;
 		CeresHelper<T>::CorrectPoint4geosun(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
-			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, tPose_);
+			tGlobalPtNCorrect.data(), tAlphaX, tAlphaY, dP, tCorrectAngle, tPose_);
 
 		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
 		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);
@@ -666,9 +698,19 @@ struct LidarMotorCalibFactor4geosun4 {
 	bool operator()(const T* alphaX, const T* alphaY, const T* dp, const T* angleCorrectVec, const T* lidarhorizonCorrectVec,
 		T* residuals) const {
 		using Vec3T = Eigen::Matrix<T, 3, 1>;
+		using Mat3T = Eigen::Matrix<T, 3, 3>;
 		using QuaT = Eigen::Quaternion<T>;
 		QuaT qAlphaX(Eigen::AngleAxis<T>(alphaX[0], Vec3T::UnitX()));		// 待优化编码器X轴修正角转四元数
-		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));		// 待优化编码器Z轴修正角转四元数
+		QuaT qAlphaY(Eigen::AngleAxis<T>(alphaY[0], Vec3T::UnitY()));	// 待优化编码器Z轴修正角转四元数
+		Mat3T matrixXY;
+		T cx = cos(alphaX[0]), sx = sin(alphaX[0]);
+		T cy = cos(alphaY[0]), sy = sin(alphaY[0]);
+		T cz = cos(T(0)), sz = sin(T(0));
+		matrixXY << cy * cz, cy* sz, -sy,
+			-cx * sz + sx * sy * cz, cx* cz + sx * sy * sz, sx* cy,
+			sx* sz + cx * sy * cz, -sx * cz + cx * sy * sx, cx* cy;
+		qAlphaX = matrixXY;
+
 
 		Eigen::Map<const Vec3T> dP(dp);
 
@@ -678,24 +720,35 @@ struct LidarMotorCalibFactor4geosun4 {
 		Vec3T sGlobalPtN = matchPair_.sPt.getNormalVector3fMap().cast<T>();
 		T sDeltAngle = (T(1.0) - T(sRatio_)) * angleCorrectVec[idVec_[0]] + T(sRatio_) * angleCorrectVec[idVec_[1]];
 
-		T sCorrectAngle = T(DEG2RAD) * (T(matchPair_.sPt.angle) - sDeltAngle);
+		T sCorrectAngle = T(DEG2RAD) * (T(-1*matchPair_.sPt.angle) - sDeltAngle);
 		T sCorrectLidar = lidarhorizonCorrectVec[idVec_[4]];
 		// target点global系下的点坐标、法向，编码器角度修正值、结合原始编码器角度后的修正角度
 		Vec3T tGlobalPt = matchPair_.tPt.getVector3fMap().cast<T>();
 		Vec3T tGlobalPtN = matchPair_.tPt.getNormalVector3fMap().cast<T>();
 		T tDeltAngle = (T(1.0) - T(tRatio_)) * angleCorrectVec[idVec_[2]] + T(tRatio_) * angleCorrectVec[idVec_[3]];
-		T tCorrectAngle = T(DEG2RAD) * (T(matchPair_.tPt.angle) - tDeltAngle);
+		T tCorrectAngle = T(-1.0)*T(DEG2RAD) * (T(matchPair_.tPt.angle) - tDeltAngle);
 		T tCorrectLidar = lidarhorizonCorrectVec[idVec_[5]];
-		
+		T sCcz = cos(tCorrectAngle), sCsz = sin(tCorrectAngle);
+		Mat3T matrixZ;
+		matrixZ << sCcz, sCsz, 0,
+			-sCsz, sCcz, 0,
+			0, 0, 1;
+		qAlphaY = matrixZ;
 		Vec3T sGlobalPtCorrect, sGlobalPtNCorrect;
 		Vec3T tGlobalPtCorrect, tGlobalPtNCorrect;
 
 
 		CeresHelper<T>::CorrectPoint4geosun4(sGlobalPt.data(), sGlobalPtN.data(), sGlobalPtCorrect.data(),
-			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, sCorrectAngle, lidarhorizonCorrectVec[idVec_[4]], sPose_);
+			sGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP,  sCorrectAngle, lidarhorizonCorrectVec[idVec_[4]], sPose_);
+
+		T tCcz = cos(tCorrectAngle), tCsz = sin(tCorrectAngle);
+		matrixZ << sCcz, sCsz, 0,
+			-sCsz, sCcz, 0,
+			0, 0, 1;
+		qAlphaY = matrixZ;
 
 		CeresHelper<T>::CorrectPoint4geosun4(tGlobalPt.data(), tGlobalPtN.data(), tGlobalPtCorrect.data(),
-			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP, tCorrectAngle, lidarhorizonCorrectVec[idVec_[5]], tPose_);
+			tGlobalPtNCorrect.data(), qAlphaX, qAlphaY, dP,  tCorrectAngle, lidarhorizonCorrectVec[idVec_[5]], tPose_);
 
 		residuals[0] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(sGlobalPtNCorrect);
 		residuals[1] = T(weight_) * (sGlobalPtCorrect - tGlobalPtCorrect).dot(tGlobalPtNCorrect);

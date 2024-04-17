@@ -18,9 +18,19 @@ namespace sc {
 		motorParamPtr_ = intrinsicParam;
 		motorParamPtr_->alpha1 *= DEG2RAD;
 		motorParamPtr_->alpha2 *= DEG2RAD;
-
-		// motorParam2Ptr_是将编码器内参角度转为四元数，方便后续使用，值是一样的
+		double alpha3 = 0;
+		double cx = cos(motorParamPtr_->alpha1), sx = sin(motorParamPtr_->alpha1);
+		double cy = cos(motorParamPtr_->alpha2), sy = sin(motorParamPtr_->alpha2);
+		double cz = cos(alpha3), sz = sin(alpha3);
+		Eigen::Matrix3d a;
+		a<< cy*cz,             cy*sz,             -sy,
+									-cx*sz + sx*sy*cz, cx*cz + sx*sy*sz, sx*cy,
+									sx*sz + cx*sy*cz,  -sx*cz + cx*sy*sx, cx*cy;
+		std::cout << a << std::endl;
 		motorParam2Ptr_ = std::make_shared<MotorCalibrationParam2>();
+		motorParam2Ptr_->mtrixXY = a;
+		// motorParam2Ptr_是将编码器内参角度转为四元数，方便后续使用，值是一样的
+		
 		motorParam2Ptr_->qAlphaX = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha1, Eigen::Vector3d::UnitX()));
 		motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitY()));
 		motorParam2Ptr_->qAlphaZ = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha3, Eigen::Vector3d::UnitZ()));
@@ -43,8 +53,8 @@ void MotorManager::SetMotorParameter(const MotorCalibrationParam::Ptr& intrinsic
 
 	// motorParam2Ptr_是将编码器内参角度转为四元数，方便后续使用，值是一样的
 	motorParam2Ptr_ = std::make_shared<MotorCalibrationParam2>();
-	motorParam2Ptr_->qAlphaX = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha1, Eigen::Vector3d::UnitX()));
-	motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitY()));
+	motorParam2Ptr_->qAlphaX = Eigen::Quaterniond(Eigen::AngleAxisd(-intrinsicParam->alpha1, Eigen::Vector3d::UnitX()));
+	motorParam2Ptr_->qAlphaY = Eigen::Quaterniond(Eigen::AngleAxisd(-intrinsicParam->alpha2, Eigen::Vector3d::UnitY()));
 	motorParam2Ptr_->qAlphaZ = Eigen::Quaterniond(Eigen::AngleAxisd(intrinsicParam->alpha2, Eigen::Vector3d::UnitZ()));
 	motorParam2Ptr_->dP = intrinsicParam->dP;
 	motorParam2Ptr_->startAngle = intrinsicParam->startAngle;
@@ -194,10 +204,16 @@ bool MotorManager::GetMotorPose4geosun(double angle,PoseD& pose, bool UseMotorAn
 	{
 		angleUse = angle;
 	}
-	angleUse = angleUse * DEG2RAD;
-	Eigen::Quaterniond qZ(Eigen::AngleAxisd(angleUse, Eigen::Vector3d::UnitZ()));
-	pose.q = qZ*motorParam2Ptr_->qAlphaY * motorParam2Ptr_->qAlphaX ;
-	pose.p = qZ * motorParam2Ptr_->dP;
+	angleUse = -angleUse * DEG2RAD;
+	double cz = std::cos(angleUse), sz = std::sin(angleUse);
+	Eigen::Quaterniond qZ(Eigen::AngleAxisd(-angleUse, Eigen::Vector3d::UnitZ()));
+	Eigen::Matrix3d b;
+	b << cz, sz, 0,
+		 -sz, cz, 0,
+		  0, 0, 1;
+	//pose.q = motorParam2Ptr_->qAlphaX* motorParam2Ptr_->qAlphaY*qZ;
+	pose.q = b* motorParam2Ptr_->mtrixXY ;
+	pose.p = b * motorParam2Ptr_->dP;
 	return true;
 }
 
@@ -214,10 +230,16 @@ bool MotorManager::GetMotorPoseInfo4geosun(double angle, PoseD& pose, int& front
 	{
 		angleUse = angle;
 	}
-	angleUse = angleUse * DEG2RAD;
+	angleUse = -angleUse * DEG2RAD;
+	double cz = std::cos(angleUse), sz = std::sin(angleUse);
 	Eigen::Quaterniond qZ(Eigen::AngleAxisd(angleUse, Eigen::Vector3d::UnitZ()));
-	pose.q = qZ * motorParam2Ptr_->qAlphaY * motorParam2Ptr_->qAlphaX;
-	pose.p = qZ * motorParam2Ptr_->dP;
+	Eigen::Matrix3d b;
+	b << cz, sz, 0,
+		-sz, cz, 0,
+		0, 0, 1;
+	
+	pose.q = b * motorParam2Ptr_->mtrixXY;
+	pose.p = b * motorParam2Ptr_->dP;
 	return true;
 }
 

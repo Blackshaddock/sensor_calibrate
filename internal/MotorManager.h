@@ -30,6 +30,7 @@ struct MotorCalibrationParam2 {
 	Eigen::Quaterniond qAlphaX;		// 编码器 X 轴修正角，转四元数
 	Eigen::Quaterniond qAlphaY;		// geosun Z轴可观 转换之后
 	Eigen::Quaterniond qAlphaZ;	    // 编码器 Z 轴修正角，转四元数 绿土Y轴可观 转换之后
+	Eigen::Matrix3d mtrixXY;        //base 库中XY的欧拉角转换
 	
 	Eigen::Vector3d dP;				// 编码器平移修正量
 	
@@ -69,12 +70,26 @@ public:
 
 	double Slerp(const double angle, int& frontId, int& backId, double& ratio) const {
 		double absAngle = std::abs(angle);
-
+		double frontAngle, backAngle;
 		frontId = int(absAngle) % 360;
 		backId  = int(absAngle + 1) % 360;
-
-		double frontAngle = angles[frontId];
-		double backAngle = angles[backId];
+		//if (frontId > 180)
+		//{
+		//	frontId = frontId - 180;
+		//	
+		//	/*frontAngle = angles[frontId - 180];
+		//	backAngle =  angles[backId - 180];*/
+		//	
+		//}
+		//if (backId > 180)
+		//{
+		//	backId = backId - 180;
+		//}
+		frontAngle = angles[frontId];
+		backAngle = angles[backId];
+		
+		/*double frontAngle = angles[frontId];
+		double backAngle = angles[backId];*/
 
 		ratio = absAngle - int(absAngle);
 
@@ -94,6 +109,7 @@ public:
 		int countId = 0;
 		std::string line;
 		while (std::getline(ifs, line)) {
+			
 			angles[countId] = std::stod(line);
 			countId++;
 		}
@@ -113,9 +129,10 @@ public:
 		while (std::getline(ifs, line)) {
 			angles[countId] = std::stod(line);
 			countId++;
+			
 		}
 
-		return countId == 16;
+		return countId == 360;
 	}
 
 

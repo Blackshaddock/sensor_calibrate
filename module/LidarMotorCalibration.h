@@ -79,6 +79,13 @@ private:
 								 BaseCloudPtr& targetCloud, const std::vector<int>& calibIdVec,
 								 bool keepLarge0 = false);
 
+	//点云压薄
+	bool PointCloudCompress(BaseCloudPtr& cloudIn);
+
+
+	//剔除离群点
+	bool PointCloudRemove(BaseCloudPtr& cloudIn);
+
 	// 计算法向
 	void GetNormal(BaseCloudPtr &cloud, std::vector<std::vector<int>>& indexes);
 
@@ -88,7 +95,7 @@ private:
 
 
 	// icp获取同名点
-	bool GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud,
+	bool GetCorrespondPointIndex(const BaseCloudPtr& sourceCloud, const BaseCloudPtr& targetCloud, const BaseCloudPtr&  sourceCloudDs,
 		const BaseCloudPtr& matchPairs);
 
 

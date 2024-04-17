@@ -55,8 +55,8 @@ inline bool ExtractPlaneCloud(const BaseCloudPtr& cloudIn, BaseCloudPtr& cloudOu
 
 	std::cout << "Plane detect cout: " << planes.size() << std::endl;
 
-	//std::string debugPath = "E:\\Projects\\git_code\\lidar_imu_calib\\2022-12-01-13-47-10\\raw_data\\";
-	//int countId = 0;
+	std::string debugPath = "D:\\code\\01.sensor_calibrate\\data\\2022-12-01-13-47-15\\optimize_result\\";
+	int countId = 0;
 	cloudOut->clear();
 	for (Plane *plane : planes) {
 		std::vector<size_t> inliersIndex = plane->inliers();
@@ -67,10 +67,10 @@ inline bool ExtractPlaneCloud(const BaseCloudPtr& cloudIn, BaseCloudPtr& cloudOu
 		}
 
 		*cloudOut += curPlane;
-		//pcl::io::savePLYFileBinary(debugPath + std::to_string(countId) + "_source_plane_segment.ply", curPlane);
-		//countId++;
+		
+		countId++;
 	}
-
+	pcl::io::savePLYFileBinary(debugPath +  "source_plane_segment.ply", *cloudOut);
 	return !cloudOut->empty();
 }
 }

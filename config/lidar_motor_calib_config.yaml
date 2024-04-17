@@ -6,8 +6,8 @@ calibration_config:
    optimize_lidar_intrisinc_param: false         # 优化激光器内参：16个垂直角
    
 bag_decode:
-   bag_path: D:\code\01.sensor_calibrate\data\2022-12-01-13-47-10.bag
-   srcpts_path: D:\code\01.sensor_calibrate\data\01\RawLidar00000_All.txt
+   bag_path: D:\code\01.sensor_calibrate\data\2022-12-01-13-47-14.bag
+   srcpts_path: D:\code\01.sensor_calibrate\data\04\202404090510-RawLidar00001.txt
    lidar_topic: /hesai/pandar_packets
    motor_topic: /GV_MotorConfig
 
@@ -26,15 +26,20 @@ bag_decode:
    max_detect_distance: 100
 
 motor_intrinsic_parameter:
-   alpha1: 0.037766
-   alpha2: -0.175781
+#    alpha1: -0.144199
+#    alpha2: -0.136248
 #alpha3: 0.000000
-   dp: [-0.004219, -0.000478, 0.000000]
+#    dp: [0.000911, -0.008969, 0.000000]
+
+    alpha1: 0.099078
+    alpha2: 0.191211
+#alpha3: 0.000000
+    dp: [-0.001397, -0.011932, 0.000000]
 
 
 motor_angle_calibration_parameter:
   # 若不设置，则默认360个角度修正值为0
   angle_correction_file: D:\code\01.sensor_calibrate\data\01\motor_angle_correction_param.txt
-  lidar_intrisic_file: D:\code\01.sensor_calibrate\data\01\lidar_intrisic_param1.txt
+  lidar_intrisic_file: D:\code\01.sensor_calibrate\data\01\lidar_intrisic_param.txt
   # 这个可以不用，默认标所有线
   # calibration_laser_id: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]

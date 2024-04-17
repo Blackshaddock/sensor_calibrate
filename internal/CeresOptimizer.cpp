@@ -219,7 +219,7 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 	BaseCloud sCloud, tCloud, sCloud2, tCloud2;
 	for (int i = 0; i < matchPairs.size(); ++i) {
 		const MotorCalibMatchPair& pair = matchPairs[i];
-		if (!pair.isValid) {
+		if (!pair.isValid || abs(matchPairs[i].sPt.data_n[3]) > 0.05 || abs(matchPairs[i].tPt.data_n[3] > 0.05)) {
 			continue;
 		}
 
@@ -276,6 +276,7 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 			else {
 				auto func = LidarMotorCalibFactor4geosun2::Create(pair, sPose, tPose, sRatio, tRatio, angleCorrectIdVec, 1.0);
 				problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
+				//problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
 			}
 			
 		}
@@ -283,7 +284,7 @@ bool CeresOptimizer::AddLidarMotorCalibObservation4(const MotorCalibMatchPairs& 
 			auto func = LidarMotorCalibFactor4geosun::Create(pair, sPose, tPose, 1.0);
 			
 			problemPtr_->AddResidualBlock(func, nullptr, paramBlocks);
-			//problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
+			problemPtr_->SetParameterBlockConstant(paramBlocks[2]);
 		}
 		
 
