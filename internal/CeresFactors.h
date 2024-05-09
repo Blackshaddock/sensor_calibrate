@@ -7,6 +7,7 @@
 #include "internal/TrajectoryManager.hpp"
 #include "module/LidarCameraCalibration.h"
 #include <ceres/ceres.h>
+#include <ceres/rotation.h>
 
 // namespace of sensor calibration
 namespace sc {
@@ -846,6 +847,126 @@ struct LidarMotorCalibFactor4geosun4 {
 };
 
 
+template <typename T> inline
+void QuaternionInverse(const T q[4], T q_inverse[4])
+{
+	q_inverse[0] = q[0];
+	q_inverse[1] = -q[1];
+	q_inverse[2] = -q[2];
+	q_inverse[3] = -q[3];
+};
+
+
+struct TError
+{
+	TError(double t_x, double t_y, double t_z, double var)
+		:t_x(t_x), t_y(t_y), t_z(t_z), var(var) {}
+
+	template <typename T>
+	bool operator()(const T* tj, T* residuals) const
+	{
+		residuals[0] = (tj[0] - T(t_x)) / T(var);
+		residuals[1] = (tj[1] - T(t_y)) / T(var);
+		residuals[2] = (tj[2] - T(t_z)) / T(var);
+
+		return true;
+	}
+
+	static ceres::CostFunction* Create(const double t_x, const double t_y, const double t_z, const double var)
+	{
+		return (new ceres::AutoDiffCostFunction<
+			TError, 3, 3>(
+				new TError(t_x, t_y, t_z, var)));
+	}
+
+	double t_x, t_y, t_z, var;
+
+};
+
+struct RelativeRTError
+{
+	RelativeRTError(double t_x, double t_y, double t_z,
+		double q_w, double q_x, double q_y, double q_z,
+		double t_var, double q_var)
+		:t_x(t_x), t_y(t_y), t_z(t_z),
+		q_w(q_w), q_x(q_x), q_y(q_y), q_z(q_z),
+		t_var(t_var), q_var(q_var) {}
+
+	template <typename T>
+	bool operator()(const T* const w_q_i, const T* ti, const T* w_q_j, const T* tj, T* residuals) const
+	{
+		T t_w_ij[3];
+		t_w_ij[0] = tj[0] - ti[0];
+		t_w_ij[1] = tj[1] - ti[1];
+		t_w_ij[2] = tj[2] - ti[2];
+
+		T i_q_w[4];
+		QuaternionInverse(w_q_i, i_q_w);
+
+		T t_i_ij[3];
+		ceres::QuaternionRotatePoint(i_q_w, t_w_ij, t_i_ij);
+
+		residuals[0] = (t_i_ij[0] - T(t_x)) / T(t_var);
+		residuals[1] = (t_i_ij[1] - T(t_y)) / T(t_var);
+		residuals[2] = (t_i_ij[2] - T(t_z)) / T(t_var);
+
+		T relative_q[4];
+		relative_q[0] = T(q_w);
+		relative_q[1] = T(q_x);
+		relative_q[2] = T(q_y);
+		relative_q[3] = T(q_z);
+
+		T q_i_j[4];
+		ceres::QuaternionProduct(i_q_w, w_q_j, q_i_j);
+
+		T relative_q_inv[4];
+		QuaternionInverse(relative_q, relative_q_inv);
+
+		T error_q[4];
+		ceres::QuaternionProduct(relative_q_inv, q_i_j, error_q);
+
+		residuals[3] = T(2) * error_q[1] / T(q_var);
+		residuals[4] = T(2) * error_q[2] / T(q_var);
+		residuals[5] = T(2) * error_q[3] / T(q_var);
+
+		return true;
+	}
+
+	static ceres::CostFunction* Create(const double t_x, const double t_y, const double t_z,
+		const double q_w, const double q_x, const double q_y, const double q_z,
+		const double t_var, const double q_var)
+	{
+		return (new ceres::AutoDiffCostFunction<
+			RelativeRTError, 6, 4, 3, 4, 3>(
+				new RelativeRTError(t_x, t_y, t_z, q_w, q_x, q_y, q_z, t_var, q_var)));
+	}
+
+	double t_x, t_y, t_z, t_norm;
+	double q_w, q_x, q_y, q_z;
+	double t_var, q_var;
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 struct LidarCameraCalibFactor {
@@ -901,4 +1022,86 @@ struct LidarCameraCalibFactor {
 	TrajectoryManager::Ptr lidarTraj_;
 };
 
+template <typename T> inline
+void TranPoint(const T t[3], T points[3],  T result[3])
+{
+	result[0] = points[0] + t[0];
+	result[1] = points[1] + t[1];
+	result[2] = points[2] + t[2];
+};
+
+
+struct LidarCaliBoardFactor {
+	LidarCaliBoardFactor(const Eigen::Vector3d & planeNormal, const Eigen::Vector3d& planePoint, const std::vector<double> distancevec):planeNormal(planeNormal), planePoint(planePoint), distancevec(distancevec) {}
+
+	template <typename T>
+	bool operator()(const T* points, const T* r, const T* t, const T* residual)
+	{
+		using Vec3T = Eigen::Matrix<T, 3, 1>;
+
+		Vec3T pointA, pointB, pointC, pointD;
+		pointA[0] = points[0]; pointA[1] = points[1]; pointA[2] = points[2];
+		pointB[0] = points[3]; pointB[1] = points[4]; pointB[2] = points[5];
+		pointC[0] = points[6]; pointC[1] = points[7]; pointC[2] = points[8];
+		pointD[0] = points[9]; pointD[1] = points[10]; pointD[2] = points[11];
+
+		Vec3T cameraA, cameraB, cameraC, cameraD;
+		cameraA[0] = camPtA[0]; cameraA[1] = camPtA[1]; cameraA[2] = camPtA[2];
+		cameraB[0] = camPtB[0]; cameraB[1] = camPtB[1]; cameraB[2] = camPtB[2];
+		cameraC[0] = camPtC[0]; cameraC[1] = camPtC[1]; cameraC[2] = camPtC[2];
+		cameraD[0] = camPtD[0]; cameraD[1] = camPtD[1]; cameraD[2] = camPtD[2];
+		//将相机归一化平面的点转到雷达坐标系下
+		T camlidarA, camlidarB, camlidarC, camlidarD;
+		ceres::QuaternionRotatePoint(q, cameraA, camlidarA);
+		TranPoint(t, camlidarA, camlidarA);
+		ceres::QuaternionRotatePoint(q, cameraB, camlidarB);
+		TranPoint(t, camlidarB, camlidarB);
+		ceres::QuaternionRotatePoint(q, cameraC, camlidarC);
+		TranPoint(t, camlidarC, camlidarC);
+		ceres::QuaternionRotatePoint(q, cameraD, camlidarD);
+		TranPoint(t, camlidarD, camlidarD);
+
+
+		//通过点云拟合的面和转换后的归一化平面得到交点坐标
+		T t = T(planePoint[0]) * T(planeNormal[0]) + T(planePoint[1]) * T(planeNormal[1]) + T(planePoint[2]) * T(planeNormal[2]);
+		cameraA = t * cameraA; cameraB = t * cameraB; cameraC = t * cameraC; cameraD = t * cameraD;
+
+
+
+		//点-点的残差用于估计R T；
+		residual[0] = (PointA - camlidarA) * (PointA - camlidarA);
+		residual[1] = (PointB - camlidarB) * (PointB - camlidarB);
+		residual[2] = (PointC - camlidarC) * (PointC - camlidarC);
+		residual[3] = (PointD - camlidarD) * (PointD - camlidarD);
+
+		T planept[3]; planept[0] = planePoint[0]; planept[1] = planePoint[1]; planept[2] = planePoint[2];
+		//点-面的距离公式 用于估计3D点
+		residual[4] = (PointA - planept) * Vec3T(planeNormal[0], planeNormal[1], planeNormal[2]);
+		residual[5] = (PointA - planept) * Vec3T(planeNormal[0], planeNormal[1], planeNormal[2]);
+		residual[6] = (PointA - planept) * Vec3T(planeNormal[0], planeNormal[1], planeNormal[2]);
+		residual[7] = (PointA - planept) * Vec3T(planeNormal[0], planeNormal[1], planeNormal[2]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
+
+	}
+
+
+	Eigen::Vector3d planeNormal;    //平面法向量
+	Eigen::Vector3d planePoint;     //平面中的一点
+	std::vector<double> distancevec;   // 方向向量 用于固定旋转
+	Eigen::Vector3d camPtA, camPtB, camPtC, camPtD;    //相机坐标系归一化平面四个点
+
+};
 }// namespace sc
