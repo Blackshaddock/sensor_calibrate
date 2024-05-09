@@ -22,6 +22,7 @@ file(GLOB INTERNAL_SRC "internal/*.h" "internal/*.cpp" "internal/*.hpp")
 file(GLOB EXAMPLE_SRC "example/*.h" "example/*.cpp" "example/*.hpp")
 file(GLOB MODULE_SRC "module/*.h" "module/*.cpp" "module/*.hpp")
 file(GLOB PLANE_DETECT_FILE "plane_detection/*.h" "plane_detection/*.cpp" "plane_detection/*.hpp")
+file(GLOB IO_SRC "io/ReadPts.h"  "io/ReadPts.cpp")
 
 message("src1: " ${INTERNAL_SRC})
 message("src2: " ${EXAMPLE_SRC})
@@ -29,29 +30,30 @@ message("src3: " ${MODULE_SRC})
 message("src4: " ${CONFIG_FILE})
 message("src5: " ${PROJECT_SOURCE_DIR})
 message("src6: " ${3RDPARTY_INCLUDE_DIRS})
-message("src7: " ${planeDetect_INCLUDE_DIRS})
+message("src8: " ${IO_SRC})
 
 source_group(internal FILES ${INTERNAL_SRC})
 source_group(example FILES ${EXAMPLE_SRC})
 source_group(module FILES ${MODULE_SRC})
 source_group(plane_detection FILES ${PLANE_DETECT_FILE})
+source_group(io FILES ${IO_SRC})
 
 # ADD_SUBDIRECTORY(PlaneDetection)
 
-add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC})
+add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC})
 set_property(TARGET lidar_motor_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 target_link_libraries(lidar_motor_calib  ${3RDPARTY_LIBRARIES} planeDetect)
 target_compile_options(lidar_motor_calib 
 	PRIVATE 
 	$<$<CXX_COMPILER_ID:MSVC>:/bigobj> 
 	)
-add_executable(camera_lidar_tracker example/CameraLidarTrackExample.cpp ${INTERNAL_SRC} ${MODULE_SRC})
-set_property(TARGET camera_lidar_tracker PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
-target_link_libraries(camera_lidar_tracker  ${3RDPARTY_LIBRARIES} planeDetect)
-target_compile_options(camera_lidar_tracker 
-	PRIVATE 
-	$<$<CXX_COMPILER_ID:MSVC>:/bigobj> 
-	)
+#add_executable(camera_lidar_tracker example/CameraLidarTrackExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC})
+#set_property(TARGET camera_lidar_tracker PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
+#target_link_libraries(camera_lidar_tracker  ${3RDPARTY_LIBRARIES} planeDetect)
+#target_compile_options(camera_lidar_tracker 
+#	PRIVATE 
+#	$<$<CXX_COMPILER_ID:MSVC>:/bigobj> 
+#	)
 #add_executable(lidar_camera_calib example/LidarCameraCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC})
 #set_property(TARGET lidar_camera_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 #target_link_libraries(lidar_camera_calib  ${3RDPARTY_LIBRARIES} planeDetect)

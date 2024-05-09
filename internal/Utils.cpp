@@ -33,6 +33,69 @@ std::string GetFileExtention(const std::string& path) {
 	return pathTmp.extension().generic_string();
 }
 
+std::vector<std::string>& GetFileNamesFromDir(const std::string& path)
+{
+	std::vector<std::string> filenames;
+	for (const auto& path : bfs::directory_iterator(path))
+	{
+		if (!valid_file(path.path().string()))
+		{
+			continue;
+		}
+
+		filenames.emplace_back(path.path().string());
+
+	}
+	return filenames;
+}
+
+bool IsDir(const std::string& path)
+{
+	if (path.empty())
+	{
+		LOG(INFO) << "The input file name is empty! ";
+		return false;
+	}
+	if (bfs::is_directory(path))
+	{
+		return true;
+	}
+	return false;
+}
+
+bool GetFileNamesFromDir(const std::string& path, std::vector<std::string>& filenames)
+{
+	filenames.clear();
+	for (const auto& path : bfs::directory_iterator(path)) {
+		if (!valid_file(path.path().string())) {
+			continue;
+		}
+
+		filenames.emplace_back(path.path().string());
+	}
+	auto start = filenames.begin(), end = filenames.end();
+	std::sort(start, end);
+	return true;
+}
+
+bool valid_file(const std::string& path)
+{
+	return false;
+}
+
+bool IsExists(const std::string& path)
+{
+	if (path.empty())
+	{
+		return false;
+	}
+	if (bfs::exists(path))
+	{
+		return true;
+	}
+	return false;
+}
+
 //template <typename T>
 //bool GetData(const YAML::Node& node, T& value) {
 //	if (!node.IsDefined()) {

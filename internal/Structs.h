@@ -53,6 +53,14 @@ struct LidarFrame {
 		this->cloudPtr = nullptr;
 	}
 
+	LidarFrame(LidarFrame& other)
+	{
+		this->startTime = other.startTime;
+		this->endTime = other.endTime;
+		this->frameId = other.frameId;
+		this->cloudPtr = other.cloudPtr;
+	}
+
 	LidarFrame(LidarFrame&& other) {
 		this->startTime = other.startTime;
 		this->endTime = other.endTime;
@@ -83,6 +91,15 @@ struct LidarFrame {
 		cloudPtr->clear();
 	}
 };
+
+struct ImuFrame
+{
+	float acc[3];
+	float gyr[3];
+	double time;
+	ImuFrame() : acc{ 0.0, 0.0, 0.0 }, gyr{0.0, 0.0, 0.0}, time(0.0) {}
+};
+
 
 struct MotorCalibMatchPair {
 	BasePoint sPt;
