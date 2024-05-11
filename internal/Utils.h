@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/filesystem.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <glog/logging.h>
 #include <yaml-cpp/yaml.h>
 
@@ -10,6 +11,11 @@ static double DEG2RAD = 0.0174532925199432;
 static double RAD2DEG = 57.295779513082320;
 namespace bfs = boost::filesystem;
 
+enum deviceType {
+	handDevice = 0,
+	normalDevice
+
+};
 
 struct sort_function {
     bool operator()(const std::string& str_1, const std::string& str_2)
@@ -39,8 +45,14 @@ bool valid_file(const std::string& path);
 
 bool IsExists(const std::string& path);
 
-//template <typename T>
-//bool GetData(const YAML::Node& node, T& value);
+template <typename T>
+bool GetData(const YAML::Node& node, T& value) {
+	if (!node.IsDefined()) {
+		return false;
+	}
+	value = node.as<T>();
+	return true;
+}
 
 std::string UtfToGbk(const std::string& strValue);
 

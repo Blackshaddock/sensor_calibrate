@@ -40,7 +40,7 @@ namespace sc
         {
             LOG(INFO) << "The input Imu file is not exist! " << configPtr_->ImuFilePath;
         }
-        std::cout << "Imu Path: " << configPtr_->ImuFilePath << " Laser Path: " << configPtr_->LaserFilePath << std::endl;
+        LOG(INFO) << "Imu Path: " << configPtr_->ImuFilePath << "    Laser Path: " << configPtr_->LaserFilePath << std::endl;
         if (enable_lidar_process_thr_ == false && enable_imu_process_thr_ == false)
         {
             return false;
@@ -53,15 +53,14 @@ namespace sc
         if (enable_lidar_process_thr_)
         {
             lidarframe_callback_ = lidar_callback;
-            lidar_send_thr_ = new boost::thread(boost::bind(&SendataIo::SendLidarData, this));
             lidar_process_thr_ = new boost::thread(boost::bind(&SendataIo::HandLidarData, this));
-
+           // lidar_process_thr_->join();
         }
         if (enable_imu_process_thr_)
         {
             imuframe_callback_ = imu_callback;
             imu_process_send_thr_ = new boost::thread(boost::bind(&SendataIo::HandImuData, this));
-
+           // imu_process_send_thr_->join();
 
         }
         return true;
@@ -109,7 +108,6 @@ namespace sc
                 {
                     break;
                 }
-
                 sscanf(tmp.c_str(), "%f %f %f %f %lf %d %f", &tmp_pt.x, &tmp_pt.y, &tmp_pt.z, &tmp_pt.intensity, &tmp_pt.time, &tmp_pt.ring, &tmp_pt.angle);
                 if (lidar_start_time_ < 0)
                 {
@@ -134,7 +132,7 @@ namespace sc
                     msg.cloudPtr->points.emplace_back(std::move(tmp_pt));
                     continue;
                 }
-                if (tmp_pt.time - msg.cloudPtr->points[0].time <= configPtr_->lidarSendDuration)
+                if (tmp_pt.time - msg.startTime < configPtr_->lidarSendDuration)
                 {
                     tmp_pt.time -= msg.startTime;
                     msg.cloudPtr->points.emplace_back(std::move(tmp_pt));
@@ -144,17 +142,33 @@ namespace sc
                 {
                     msg.endTime = tmp_pt.time;
                     lidarframe_id_++;
+                    tmp_pt.time -= msg.startTime;
+                    msg.cloudPtr->points.emplace_back(std::move(tmp_pt));
                     msg.frameId = lidarframe_id_;
                     msg.cloudPtr->width = (uint32_t)msg.cloudPtr->points.size();
                     msg.cloudPtr->height = 1;
+                    if (msg.frameId < configPtr_->startProcessId)
+                    {
+                        continue;
+                    }
+                    if (msg.frameId > configPtr_->endProcessId)
+                    {
+                        break;
+                    }
                     lidarframe_callback_(msg);
-                    msg.cloudPtr->clear();
+                    msg.cloudPtr = NULL;
+                    msg.cloudPtr = BaseCloudPtr(new BaseCloud);
+                    
                 }
 
 
             }
+            if (msg.frameId > configPtr_->endProcessId)
+            {
+                break;
+            }
         }
-
+        LOG(INFO) << "Process Finish! ";
         return true;
     }
     bool SendataIo::HandMotorData()
@@ -189,7 +203,6 @@ namespace sc
             }
 
             sscanf(tmp.c_str(), "%d %lf %f %f %f %f %f %f", &week, &tmp_imu.time, &tmp_imu.acc[0], &tmp_imu.acc[1], &tmp_imu.acc[2], &tmp_imu.gyr[0], &tmp_imu.gyr[1], &tmp_imu.gyr[2]);
-            std::cout << std::setprecision(10) << tmp_imu.time << std::endl;
             imuframe_callback_(tmp_imu);
 
         }

@@ -73,24 +73,9 @@ public:
 		double frontAngle, backAngle;
 		frontId = int(absAngle) % 360;
 		backId  = int(absAngle + 1) % 360;
-		//if (frontId > 180)
-		//{
-		//	frontId = frontId - 180;
-		//	
-		//	/*frontAngle = angles[frontId - 180];
-		//	backAngle =  angles[backId - 180];*/
-		//	
-		//}
-		//if (backId > 180)
-		//{
-		//	backId = backId - 180;
-		//}
 		frontAngle = angles[frontId];
 		backAngle = angles[backId];
 		
-		/*double frontAngle = angles[frontId];
-		double backAngle = angles[backId];*/
-
 		ratio = absAngle - int(absAngle);
 
 		return (1 - ratio) * frontAngle + ratio * backAngle;

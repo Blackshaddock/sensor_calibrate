@@ -1,5 +1,19 @@
 # 标定结果写出到bag同级同名文件夹
 
+lid_decode:
+  lidar_file_path: D:\code\01.sensor_calibrate\data\04
+  imu_file_path:   E:\data\testdataio\imu\20240417091621_IMU.txt
+lid_params:
+  lidar_send_duration: 1 # 雷达帧率
+  #min_detect_distance: 0 # 最小过滤
+  #max_detect_distance: 100 # 最大过滤
+  #start_process_time: 0    # 开始时间
+  #end_process_time:   100  # 结束时间
+  start_process_id:  2     #开始帧id
+  end_process_id:    130 # 结束帧id
+  #lidar_send_duration: 100000  #处理时间
+  
+  
 calibration_config:
    optimize_motor_intrisinc_param: true         # 优化编码器内参：alpha1, alpha2, dP
    optimize_motor_angle_correct_param: true     # 优化编码器360个角度修正量
@@ -36,6 +50,7 @@ motor_intrinsic_parameter:
 #alpha3: 0.000000
     dp: [-0.001397, -0.011932, 0.000000]
 
+    rotLidar2Motor: [-1, 0, 0, 0,  0, 0, -1,0, 0, -1, 0,0, 0, 0, 0, 1]
 
 motor_angle_calibration_parameter:
   # 若不设置，则默认360个角度修正值为0

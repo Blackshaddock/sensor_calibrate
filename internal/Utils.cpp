@@ -80,7 +80,7 @@ bool GetFileNamesFromDir(const std::string& path, std::vector<std::string>& file
 
 bool valid_file(const std::string& path)
 {
-	return false;
+	return true;
 }
 
 bool IsExists(const std::string& path)
@@ -96,14 +96,7 @@ bool IsExists(const std::string& path)
 	return false;
 }
 
-//template <typename T>
-//bool GetData(const YAML::Node& node, T& value) {
-//	if (!node.IsDefined()) {
-//		return false;
-//	}
-//	value = node.as<T>();
-//	return true;
-//}
+
 
 std::string UtfToGbk(const std::string& strValue) {
 	int len = MultiByteToWideChar(CP_UTF8, 0, strValue.c_str(), -1, NULL, 0);

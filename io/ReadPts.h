@@ -14,7 +14,7 @@
 
 
 namespace sc {
-
+    
     struct SenSorParamsConfig
     {
         typedef std::shared_ptr<SenSorParamsConfig>	Ptr;
@@ -38,10 +38,8 @@ namespace sc {
             startProcessTime(-DBL_MAX), endProcessTime(DBL_MAX),
             startProcessId(INT_MIN), endProcessId(INT_MAX), processDuration(DBL_MAX), lidarSendDuration(0.1) {}
 
-        friend std::ostream& operator<< (std::ostream& out, SenSorParamsConfig& sensorparamsconfig) {
-            std::cout << "===" << std::endl;
-            out << sensorparamsconfig.LaserFilePath << " " << sensorparamsconfig.MotorFilePath << " " << sensorparamsconfig.ImuFilePath
-                << sensorparamsconfig.CameraFilePath;
+        friend std::ostream& operator<< (std::ostream& out, SenSorParamsConfig::Ptr & sensorparamsconfig) {
+            out << "laser path: " << sensorparamsconfig->LaserFilePath << " , motor path: " << sensorparamsconfig->MotorFilePath << " , imufile path: " << sensorparamsconfig->ImuFilePath << " , camerafile path: " <<  sensorparamsconfig->CameraFilePath << " , min dist: " << sensorparamsconfig->minDetectDist << " , max dist: " << sensorparamsconfig->maxDetectDist << " , start time: " << sensorparamsconfig->startProcessTime << " , end time: " << sensorparamsconfig->endProcessTime << ", start id" << sensorparamsconfig->startProcessId << " , end id" << sensorparamsconfig->endProcessId << " ,process duration: " << sensorparamsconfig->processDuration << " ,lidar duration: " << sensorparamsconfig->lidarSendDuration;
             return out;
 
 

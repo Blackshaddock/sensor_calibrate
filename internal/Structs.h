@@ -9,7 +9,7 @@ namespace sc {
 struct PointXYZIRT {
 	PCL_ADD_POINT4D;
 	PCL_ADD_NORMAL4D;
-	float time;
+	double time;
 	float angle;		// ±àÂëÆ÷½Ç¶È
 	uint8_t ring;
 	int32_t id;
@@ -59,6 +59,7 @@ struct LidarFrame {
 		this->endTime = other.endTime;
 		this->frameId = other.frameId;
 		this->cloudPtr = other.cloudPtr;
+		//other.~LidarFrame();
 	}
 
 	LidarFrame(LidarFrame&& other) {
@@ -119,7 +120,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(sc::PointXYZIRT, (float, x, x)
 								 (float, normal_y, normal_y)
 								 (float, normal_z, normal_z)
 								 (float, intensity, intensity)
-								 (float, time, time)
+								 (double, time, time)
 								 (float, angle, angle)
 								 (int32_t, id, id)
 								 (uint8_t, ring, ring))
