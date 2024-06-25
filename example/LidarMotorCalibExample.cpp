@@ -1,7 +1,11 @@
 #include "module/LidarMotorCalibration.h"
 #include "module/LidarSlam.h"
+#include "module/ImuAnchorOptimization.h"
+#include "internal/CeresFactors.h"
+#include <deque>
 
 int main(int argc, char** argv) {
+	
 	// 指定config文件夹的yaml文件
 	if (argc != 3) {
 		std::cout << "Please set config file path first." << std::endl;

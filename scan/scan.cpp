@@ -1,5 +1,5 @@
 #include "scan.h"
-
+#include <pcl/registration/ndt.h>
 namespace scanframe
 {
 	using namespace sc;
@@ -11,46 +11,103 @@ namespace scanframe
 		scanFrameConfig_->LoadAngleCorrectionFile();
 		threadNum_ = omp_get_max_threads() * 0.8;
 		LOG(INFO) << "Thread use: " << threadNum_;
+
+
+		double cx = cos(scanFrameConfig_->alphaX * DEG2RAD), sx = sin(scanFrameConfig_->alphaX * DEG2RAD);
+		double cy = cos(scanFrameConfig_->alphaY * DEG2RAD), sy = sin(scanFrameConfig_->alphaY * DEG2RAD);
+		double cz = cos(scanFrameConfig_->alphaZ * DEG2RAD), sz = sin(scanFrameConfig_->alphaZ * DEG2RAD);
+		Eigen::Matrix3d a;
+		a << cy * cz, cy* sz, -sy,
+			-cx * sz + sx * sy * cz, cx* cz + sx * sy * sz, sx* cy,
+			sx* sz + cx * sy * cz, -sx * cz + cx * sy * sx, cx* cy;
+		scanFrameConfig_->mtrixXY = a;
+
 		std::string debugRootDir = sensorParamsConfig->LaserFilePath;
 		debugRootDir = GetRootDirectory(sensorParamsConfig->LaserFilePath) + "/ProcessData/";
 		CreateDir(debugRootDir);
 		debugProcessDataPath_ = debugRootDir;
+
+		//ndt_omp_ = ndtInit(scanFrameConfig_->ndt_resolution);
+
 	}
+	
+	pclomp::NormalDistributionsTransform<BasePoint, BasePoint>::Ptr ScanFrame::ndtInit(double ndt_resolution)
+	{
+		auto ndt_omp = pclomp::NormalDistributionsTransform<BasePoint, BasePoint>::Ptr();
+		ndt_omp->setResolution(ndt_resolution);
+		ndt_omp->setNumThreads(4);
+		ndt_omp->setNeighborhoodSearchMethod(pclomp::DIRECT7);
+		ndt_omp->setTransformationEpsilon(1e-3);
+		ndt_omp->setStepSize(0.01);
+		ndt_omp->setMaximumIterations(50);
+		return ndt_omp;
+	}
+
 	void ScanFrame::InputLidarFrame(LidarFrame &lidarFrame)
 	{
-
+		
+		ConverPoints2M0(lidarFrame.cloudPtr);
+		SaveLidarFrame(lidarFrame);
 		m_LidarFrames_.lock();
-		qLidarFrames_.emplace(lidarFrame);
+		m_vVoxelMap.push_back(lidarFrame);
 		m_LidarFrames_.unlock();
-		boost::posix_time::ptime p_time = boost::posix_time::microsec_clock::local_time();
-		std::cout << std::setprecision(14) << "lidar: " << p_time <<  " " << lidarFrame.frameId << " " << lidarFrame.startTime << " " << lidarFrame.endTime << " " << lidarFrame.cloudPtr->points.size() <<  std::endl;
+		//boost::posix_time::ptime p_time = boost::posix_time::microsec_clock::local_time();
 	}
 	void ScanFrame::InputImuFrame(ImuFrame& imuFrame)
 	{
 		m_ImuFrames_.lock();
-		qImuFrames_.emplace(imuFrame);
+		m_vVoxelMap.push_back(imuFrame);
 		m_ImuFrames_.unlock();
 		boost::posix_time::ptime p_time = boost::posix_time::microsec_clock::local_time();
-		std::cout << std::setprecision(14) << "imu: " << p_time <<" " <<  imuFrame.time << std::endl;
 	}
+
+
+	void ScanFrame::SaveLidarFrame(LidarFrame& lidarFrame)
+	{
+		PlyIo fullOriginPly(debugProcessDataPath_ + "M0_" + to_string(lidarFrame.frameId) +".ply");
+		fullOriginPly.SetOnePatch(*lidarFrame.cloudPtr);
+		fullOriginPly.Flush();
+		fullOriginPly.Close();
+
+	}
+
+
 	//1. 转到编码器坐标系， 2. 转到编码器的0轴坐标系
 	void ScanFrame::ConverPoints2M0(BaseCloudPtr cloudIn)
 	{
 		pcl::transformPointCloud(*cloudIn, *cloudIn, scanFrameConfig_->rotLidar2Motor.cast<float>());
 #pragma omp parallel for num_threads(threadNum_)
-		for (auto &pt : cloudIn->points)
+		//for (auto &pt : cloudIn->points)
+		//{
+		//	PoseD tmpPose;
+		//	// + 或者- 取决于标定的模型
+		//	double angle = pt.angle - Slerp(pt.angle);
+		//	angle = angle * DEG2RAD;
+		//	Eigen::Quaterniond qZ(Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()));
+		//	Eigen::Quaterniond qY(Eigen::AngleAxisd(scanFrameConfig_->alphaY*DEG2RAD, Eigen::Vector3d::UnitY()));
+		//	Eigen::Quaterniond qX(Eigen::AngleAxisd(scanFrameConfig_->alphaX*DEG2RAD, Eigen::Vector3d::UnitX()));
+		//	tmpPose.q = qX * qY * qZ;
+		//	tmpPose.p = qZ * scanFrameConfig_->dp;
+		//	pt.getArray3fMap() = tmpPose.q.cast<float>() * pt.getArray3fMap() + tmpPose.p.cast<float>();
+		//}
+		for (auto& pt : cloudIn->points)
 		{
 			PoseD tmpPose;
 			// + 或者- 取决于标定的模型
-			double angle = pt.angle - Slerp(pt.angle);
-			angle = angle * DEG2RAD;
-			Eigen::Quaterniond qZ(Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()));
-			Eigen::Quaterniond qY(Eigen::AngleAxisd(scanFrameConfig_->alphaY*DEG2RAD, Eigen::Vector3d::UnitY()));
-			Eigen::Quaterniond qX(Eigen::AngleAxisd(scanFrameConfig_->alphaX*DEG2RAD, Eigen::Vector3d::UnitX()));
-			tmpPose.q = qX * qY * qZ;
-			tmpPose.p = qZ * scanFrameConfig_->dp;
+			 
+			double angle = -pt.angle * DEG2RAD;
+			double cz = std::cos(angle), sz = std::sin(angle);
+			Eigen::Matrix3d b;
+			b << cz, sz, 0,
+				-sz, cz, 0,
+				0, 0, 1;
+			//pose.q = motorParam2Ptr_->qAlphaX* motorParam2Ptr_->qAlphaY*qZ;
+			tmpPose.q = b * scanFrameConfig_->mtrixXY;
+			tmpPose.p = b * scanFrameConfig_->dp;
 			pt.getArray3fMap() = tmpPose.q.cast<float>() * pt.getArray3fMap() + tmpPose.p.cast<float>();
 		}
+
+
 	}
 
 	double ScanFrame::Slerp(double angle)
@@ -67,34 +124,9 @@ namespace scanframe
 
 	bool ScanFrame::Run()
 	{
+		LOG(INFO) << "Parse Lidar/IMU and Input!" << std::endl;
 		gSensorData_->Start(boost::bind(&ScanFrame::InputLidarFrame, this, _1), boost::bind(&ScanFrame::InputImuFrame, this, _1));
-		while (true)
-		{
-			if (qImuFrames_.empty() || qLidarFrames_.empty())
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(2));
-				continue;
-			}
-			curLidarFrame_.Clear();
-			m_LidarFrames_.lock();
-			curLidarFrame_ = qLidarFrames_.front();
-			qLidarFrames_.pop();
-			m_LidarFrames_.unlock();
-			
-			PlyIo fullOriginPly(debugProcessDataPath_ + "cloudM0_" + std::to_string(curLidarFrame_.frameId) + ".ply");
-			PlyIo fullProcessPly(debugProcessDataPath_ + "cloudProcessM0_" + std::to_string(curLidarFrame_.frameId) + ".ply");
-			fullOriginPly.SetOnePatch(*curLidarFrame_.cloudPtr);
-			fullOriginPly.Flush();
-			fullOriginPly.Close();
-			 //将点云从雷达坐标系转到编码器坐标系
-			if (scanFrameConfig_->processType == 0)
-			{
-				ConverPoints2M0(curLidarFrame_.cloudPtr);
-			}
-			fullProcessPly.SetOnePatch(*curLidarFrame_.cloudPtr);
-			fullProcessPly.Flush();
-			fullProcessPly.Close();
-		}
+		m_vVoxelMap.start();
 		return true;
 	}
 	bool ScanFrameConfig::LoadAngleCorrectionFile()

@@ -168,7 +168,7 @@ namespace sc
                 break;
             }
         }
-        LOG(INFO) << "Process Finish! ";
+        LOG(INFO) << "Process Laser Finish! ";
         return true;
     }
     bool SendataIo::HandMotorData()
@@ -177,7 +177,7 @@ namespace sc
     }
     bool SendataIo::HandImuData()
     {
-        LOG(INFO) << "Process IMU 2=====>";
+        LOG(INFO) << "Process IMU =====>";
         // //判断文件是否存在
         if (configPtr_ == nullptr || configPtr_->ImuFilePath.empty())
         {
@@ -191,7 +191,6 @@ namespace sc
 
         //数据带有头 需要过滤两行
         std::getline(fd, tmp);
-        std::cout << tmp << std::endl;
         std::getline(fd, tmp);
         int week;
         for (int i = 0; /*i < 2007500*/; i++)
@@ -202,11 +201,11 @@ namespace sc
                 break;
             }
 
-            sscanf(tmp.c_str(), "%d %lf %f %f %f %f %f %f", &week, &tmp_imu.time, &tmp_imu.acc[0], &tmp_imu.acc[1], &tmp_imu.acc[2], &tmp_imu.gyr[0], &tmp_imu.gyr[1], &tmp_imu.gyr[2]);
+            sscanf(tmp.c_str(), "%d %lf %f %f %f %f %f %f", &week, &tmp_imu.time, &tmp_imu.gyr[0], &tmp_imu.gyr[1], &tmp_imu.gyr[2], &tmp_imu.acc[0], &tmp_imu.acc[1], &tmp_imu.acc[2]);
             imuframe_callback_(tmp_imu);
 
         }
-
+        LOG(INFO) << "Process IMU Finish! ";
         return true;
 
 

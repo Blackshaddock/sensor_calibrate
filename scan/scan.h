@@ -1,18 +1,25 @@
-#include "../internal/Structs.h"
+#ifndef __SCAN_H__
+#define __SCAN_H__
+
 #include "../io/ReadPts.h"
+
 #include <queue>
 #include <mutex>
 #include <ctime>
 #include <omp.h>
 #include <pcl/common/transforms.h>
-#include "../internal/PoseD.h"
+#include "ExtractFeature.h"
 #include "internal/PlyIo.hpp"
-
+#include "ndt_omp/ndt_omp.h"
 #include <pcl/io/pcd_io.h>		// 仅用于调试，后续可以取消
 #include <pcl/io/ply_io.h>
+#include "odometry/voxelMapping.h"
+
+using namespace sc;
+using namespace odom;
 namespace scanframe
 {
-	using namespace sc;
+	
 	struct ScanFrameConfig
 	{
 		typedef std::shared_ptr<ScanFrameConfig> Ptr;
@@ -22,9 +29,12 @@ namespace scanframe
 		double alphaX;
 		double alphaY;
 		double alphaZ;
+		Eigen::Matrix3d mtrixXY;
 		Eigen::Vector3d dp;
 		std::vector<double> correctAngles;
 		std::string correctAngleFile;
+		double ndt_resolution;                                //NDT 分辨率
+
 		bool LoadAngleCorrectionFile();
 		
 	};
@@ -37,9 +47,13 @@ namespace scanframe
 			LOG(INFO) << "Thread use: " << threadNum_;
 		};
 		ScanFrame(SenSorParamsConfig::Ptr sensorParamsConfig, ScanFrameConfig::Ptr scanFrameConfig);
+		
+		pclomp::NormalDistributionsTransform<BasePoint, BasePoint>::Ptr ndtInit(double ndt_resolution);
 		void InputLidarFrame(LidarFrame & lidarFrame);
+
 		void InputImuFrame(ImuFrame& imuFrame);
 
+		void SaveLidarFrame(LidarFrame& lidarFrame);
 		/// <summary>
 		/// 针对带有编码器的设备，将激光器转到编码器M0所在的坐标系
 		/// </summary>
@@ -70,12 +84,14 @@ namespace scanframe
 		SendataIo::Ptr gSensorData_;
 		std::mutex m_LidarFrames_;
 		std::mutex m_ImuFrames_;
-
 		LidarFrame curLidarFrame_;
+		ExtractFeature extractFeature_;
 		int threadNum_;                                       ///线程数
-
 		std::string debugProcessDataPath_;
+		VoxelMap m_vVoxelMap;
 
 	};
 
 }
+
+#endif

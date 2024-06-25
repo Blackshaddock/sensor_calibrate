@@ -1,8 +1,10 @@
-#pragma once
+#ifndef __STRUCTS_H__
+#define __STRUCTS_H__
+
 #define PCL_NO_PRECOMPILE
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-
+#include <deque>
 // namespace of sensor calibration
 namespace sc {
 
@@ -53,7 +55,7 @@ struct LidarFrame {
 		this->cloudPtr = nullptr;
 	}
 
-	LidarFrame(LidarFrame& other)
+	LidarFrame(const LidarFrame& other)
 	{
 		this->startTime = other.startTime;
 		this->endTime = other.endTime;
@@ -93,12 +95,22 @@ struct LidarFrame {
 	}
 };
 
+
+
+
+
 struct ImuFrame
 {
 	float acc[3];
 	float gyr[3];
 	double time;
 	ImuFrame() : acc{ 0.0, 0.0, 0.0 }, gyr{0.0, 0.0, 0.0}, time(0.0) {}
+	void clear()
+	{
+		std::fill_n(acc, 3, 0.0);
+		std::fill_n(gyr, 3, 0.0);
+		time = 0.0;
+	}
 };
 
 
@@ -110,6 +122,13 @@ struct MotorCalibMatchPair {
 	MotorCalibMatchPair() : isValid(false) {}
 };
 typedef std::vector<MotorCalibMatchPair> MotorCalibMatchPairs;
+
+
+struct MeasureGroup // Lidar data and imu dates for the curent process
+{
+	LidarFrame lidar;
+	std::deque<ImuFrame> imu;
+};
 
 }// namespace sc
 
@@ -132,3 +151,5 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(sc::PointXYZIRGB, (float, x, x)
 								 (uint8_t, r, r)
 								 (uint8_t, g, g)
 								 (uint8_t, b, b))
+
+#endif

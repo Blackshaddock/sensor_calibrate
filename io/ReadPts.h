@@ -1,17 +1,17 @@
 #ifndef __ReadPts_H__
 #define __ReadPts_H__
 
-#include "../internal/Structs.h"
-#include "float.h"
-#include "../internal/Utils.h"
 #include <mutex>
 #include <boost/function.hpp>
 #include <pcl/common/distances.h>
 #include <boost/thread.hpp>
 #include <thread>
+#include <float.h>
 #include <sstream>
 
 
+#include "internal/Utils.h"
+#include "internal/Structs.h"
 
 namespace sc {
     
@@ -39,7 +39,7 @@ namespace sc {
             startProcessId(INT_MIN), endProcessId(INT_MAX), processDuration(DBL_MAX), lidarSendDuration(0.1) {}
 
         friend std::ostream& operator<< (std::ostream& out, SenSorParamsConfig::Ptr & sensorparamsconfig) {
-            out << "laser path: " << sensorparamsconfig->LaserFilePath << " , motor path: " << sensorparamsconfig->MotorFilePath << " , imufile path: " << sensorparamsconfig->ImuFilePath << " , camerafile path: " <<  sensorparamsconfig->CameraFilePath << " , min dist: " << sensorparamsconfig->minDetectDist << " , max dist: " << sensorparamsconfig->maxDetectDist << " , start time: " << sensorparamsconfig->startProcessTime << " , end time: " << sensorparamsconfig->endProcessTime << ", start id" << sensorparamsconfig->startProcessId << " , end id" << sensorparamsconfig->endProcessId << " ,process duration: " << sensorparamsconfig->processDuration << " ,lidar duration: " << sensorparamsconfig->lidarSendDuration;
+            out << "min dist : " << sensorparamsconfig->minDetectDist << ", max dist : " << sensorparamsconfig->maxDetectDist << ", start time : " << sensorparamsconfig->startProcessTime << ", end time : " << sensorparamsconfig->endProcessTime << ", start id" << sensorparamsconfig->startProcessId << ", end id" << sensorparamsconfig->endProcessId << ", process duration : " << sensorparamsconfig->processDuration << ", lidar duration : " << sensorparamsconfig->lidarSendDuration;
             return out;
 
 

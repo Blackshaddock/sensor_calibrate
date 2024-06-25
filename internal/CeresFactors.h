@@ -948,7 +948,42 @@ struct RelativeRTError
 };
 
 
+struct Lidar2LidarRT {
+	Lidar2LidarRT(double sPt_x, double sPt_y, double sPt_z, double tPt_x, double tPt_y, double tPt_z):sPt_x(sPt_x),sPt_y(sPt_y),sPt_z(sPt_z),
+		tPt_x(tPt_x), tPt_y(tPt_y), tPt_z(tPt_z)
+	{}
 
+	template <typename T>
+	bool operator()(const T* q, const T *t, T* residuals) const
+	{
+		T sPt[3], sPt1[3];
+		sPt[0] = T(sPt_x);
+		sPt[1] = T(sPt_y);
+		sPt[2] = T(sPt_z);
+				 
+		ceres::QuaternionRotatePoint(q, sPt, sPt1);
+		sPt1[0] = sPt1[0] + t[0];
+		sPt1[1] = sPt1[1] + t[1];
+		sPt1[2] = sPt1[2] + t[2];
+
+		residuals[0] = sPt1[0] - T(tPt_x);
+		residuals[1] = sPt1[1] - T(tPt_y);
+		residuals[2] = sPt1[2] - T(tPt_z);
+
+		return true;
+	}
+
+	static ceres::CostFunction* Create(const double sPt_x, const double sPt_y, const double sPt_z, const double tPt_x, const double tPt_y, const double tPt_z)
+	{
+		return (new ceres::AutoDiffCostFunction<
+			Lidar2LidarRT, 3, 4, 3>(
+				new Lidar2LidarRT(sPt_x, sPt_y, sPt_z, tPt_x, tPt_y, tPt_z)));
+	}
+
+
+	double sPt_x, sPt_y, sPt_z;
+	double tPt_x, tPt_y, tPt_z;
+};
 
 
 

@@ -18,7 +18,7 @@ public:
 
 	bool Run();
 
-private:
+//private:
 	// 加载里程计数据
 	bool InputOdo(Eigen::Quaterniond &q, Eigen::Vector3d &t);
 
