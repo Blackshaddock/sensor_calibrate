@@ -13,10 +13,9 @@
 #include "ndt_omp/ndt_omp.h"
 #include <pcl/io/pcd_io.h>		// 仅用于调试，后续可以取消
 #include <pcl/io/ply_io.h>
-#include "odometry/voxelMapping.h"
+#include "r3live/r3live_lio.h"
 
 using namespace sc;
-using namespace odom;
 namespace scanframe
 {
 	
@@ -82,13 +81,12 @@ namespace scanframe
 		std::queue<LidarFrame> qLidarFrames_;
 		std::queue<ImuFrame> qImuFrames_;
 		SendataIo::Ptr gSensorData_;
-		std::mutex m_LidarFrames_;
-		std::mutex m_ImuFrames_;
+		
 		LidarFrame curLidarFrame_;
 		ExtractFeature extractFeature_;
 		int threadNum_;                                       ///线程数
 		std::string debugProcessDataPath_;
-		VoxelMap m_vVoxelMap;
+		R3LIVE m_rR3live;
 
 	};
 

@@ -128,6 +128,8 @@ struct MeasureGroup // Lidar data and imu dates for the curent process
 {
 	LidarFrame lidar;
 	std::deque<ImuFrame> imu;
+	bool isStatic;                   // 该帧点云是否为静止
+	MeasureGroup() : isStatic(false) {}
 };
 
 }// namespace sc

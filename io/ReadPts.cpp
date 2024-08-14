@@ -149,6 +149,8 @@ namespace sc
                     msg.cloudPtr->height = 1;
                     if (msg.frameId < configPtr_->startProcessId)
                     {
+                        msg.cloudPtr = NULL;
+                        msg.cloudPtr = BaseCloudPtr(new BaseCloud);
                         continue;
                     }
                     if (msg.frameId > configPtr_->endProcessId)

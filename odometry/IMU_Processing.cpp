@@ -122,6 +122,7 @@ void ImuProcess::IMU_init(const MeasureGroup& meas, StatesGroup& state_inout,
 void ImuProcess::UndistortPcl(const MeasureGroup& meas,
     StatesGroup& state_inout,
     BaseCloud& pcl_out) {
+    //StatesGroup state_inout = _state_inout;
     /*** add the imu of the last frame-tail to the of current frame-head ***/
     auto v_imu = meas.imu;
     v_imu.push_front(last_imu_);
@@ -140,7 +141,6 @@ void ImuProcess::UndistortPcl(const MeasureGroup& meas,
     // IMUpose.push_back(set_pose6d(0.0, Zero3d, Zero3d, state.vel_end,
     // state.pos_end, state.rot_end));
     IMUpose.push_back(set_pose6d(0.0, acc_s_last, angvel_last, state_inout.vel_end, state_inout.pos_end, state_inout.rot_end));
-
     /*** forward propagation at each imu point ***/
     V3D acc_imu, angvel_avr, acc_avr;
     V3D vel_imu(state_inout.vel_end), pos_imu(state_inout.pos_end);
@@ -190,13 +190,26 @@ void ImuProcess::UndistortPcl(const MeasureGroup& meas,
         F_x.block<3, 3>(6, 12) = -R_imu * dt;
         F_x.block<3, 3>(6, 15) = M3D::Identity() * dt;
 
-        cov_w.block<3, 3>(0, 0).diagonal() = cov_gyr * dt * dt;
-        cov_w.block<3, 3>(6, 6) =
-            R_imu * cov_acc.asDiagonal() * R_imu.transpose() * dt * dt;
-        cov_w.block<3, 3>(9, 9).diagonal() =
-            cov_bias_gyr * dt * dt; // bias gyro covariance
-        cov_w.block<3, 3>(12, 12).diagonal() =
-            cov_bias_acc * dt * dt; // bias acc covariance
+        //cov_w.block<3, 3>(0, 0).diagonal() = cov_gyr * dt * dt;
+        //cov_w.block<3, 3>(6, 6) =
+        //    R_imu * cov_acc.asDiagonal() * R_imu.transpose() * dt * dt;
+        //cov_w.block<3, 3>(9, 9).diagonal() =
+        //    cov_bias_gyr * dt * dt; // bias gyro covariance
+        //cov_w.block<3, 3>(12, 12).diagonal() =
+        //    cov_bias_acc * dt * dt; // bias acc covariance
+        Eigen::Matrix3d Jr_omega_dt = Eigen::Matrix3d::Identity();
+        Eigen::Matrix3d cov_acc_diag, cov_gyr_diag, cov_omega_diag;
+        cov_omega_diag = Eigen::Vector3d(0.1, 0.1, 0.1).asDiagonal();
+        cov_acc_diag = Eigen::Vector3d(0.4, 0.4, 0.4).asDiagonal();
+        cov_gyr_diag = Eigen::Vector3d(0.2, 0.2, 0.2).asDiagonal();
+        // cov_w.block<3, 3>(0, 0) = cov_omega_diag * dt * dt;
+        cov_w.block< 3, 3 >(0, 0) = Jr_omega_dt * cov_omega_diag * Jr_omega_dt * dt * dt;
+        cov_w.block< 3, 3 >(3, 3) = R_imu * cov_gyr_diag * R_imu.transpose() * dt * dt;
+        cov_w.block< 3, 3 >(6, 6) = cov_acc_diag * dt * dt;
+        cov_w.block< 3, 3 >(9, 9).diagonal() =
+            Eigen::Vector3d(0.1, 0.1, 0.1) * dt * dt; // bias gyro covariance
+        cov_w.block< 3, 3 >(12, 12).diagonal() =
+            Eigen::Vector3d(0.05, 0.05, 0.05) * dt * dt;
 
         state_inout.cov = F_x * state_inout.cov * F_x.transpose() + cov_w;
 
@@ -218,10 +231,7 @@ void ImuProcess::UndistortPcl(const MeasureGroup& meas,
         double&& offs_t = tail.time - pcl_beg_time;
         IMUpose.push_back(set_pose6d(offs_t, acc_imu, angvel_avr, vel_imu, pos_imu, R_imu));
     }
-    for (auto imupose : IMUpose)
-    {
-        std::cout << imupose.pos[0] << " " << imupose.pos[1] << " " << imupose.pos[2] << std::endl;
-    }
+    
     /*** calculated the pos and attitude prediction at the frame-end ***/
     double note = pcl_end_time > imu_end_time ? 1.0 : -1.0;
     dt = note * (pcl_end_time - imu_end_time);
@@ -237,7 +247,7 @@ void ImuProcess::UndistortPcl(const MeasureGroup& meas,
     auto rot_liD_e = state_inout.rot_end * Lid_rot_to_IMU;
 
     /*** undistort each lidar point (backward propagation) ***/
-    std::string plyPath = "E:\\data\\RTK\\RTK\\ProcessData\\";
+    
     auto it_pcl = pcl_out.points.end() - 1;
     for (auto it_kp = IMUpose.end() - 1; it_kp != IMUpose.begin(); it_kp--) {
         auto head = it_kp - 1;
@@ -259,6 +269,7 @@ void ImuProcess::UndistortPcl(const MeasureGroup& meas,
              * represented in global frame */
             M3D R_i(R_imu * Exp(angvel_avr, dt));
             V3D T_i(pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt);
+            //计算的是相对于时间坐标系
             auto pos_liD_i = R_i * Lid_offset_to_IMU + T_i;
             auto rot_liD_i = R_i * Lid_rot_to_IMU;
 
@@ -278,7 +289,6 @@ void ImuProcess::UndistortPcl(const MeasureGroup& meas,
         }
     }
 
-    pcl::io::savePLYFile(plyPath + to_string(meas.lidar.frameId) + "u.ply", pcl_out);
 }
 
 // constant velocity model
@@ -324,6 +334,148 @@ void ImuProcess::only_propag(const MeasureGroup& meas, StatesGroup& state_inout,
     state_inout.pos_end = state_inout.pos_end + state_inout.vel_end * dt;
 }
 
+void ImuProcess::lic_state_propagate(const MeasureGroup& meas, StatesGroup& state_inout)
+{
+    /*** add the imu of the last frame-tail to the of current frame-head ***/
+    auto v_imu = meas.imu;
+    v_imu.push_front(last_imu_);
+    // const double &imu_beg_time = v_imu.front()->header.stamp.toSec();
+    const double& imu_end_time = v_imu.back().time;
+    const double& pcl_beg_time = meas.lidar.startTime;
+
+    /*** sort point clouds by offset time ***/
+    BaseCloud pcl_out = *(meas.lidar.cloudPtr);
+    std::sort(pcl_out.points.begin(), pcl_out.points.end(), time_list);
+    const double& pcl_end_time = pcl_beg_time + pcl_out.points.back().time;
+    double        end_pose_dt = pcl_end_time - imu_end_time;
+
+    state_inout = imu_preintegration(state_inout, v_imu, end_pose_dt);
+    last_imu_ = meas.imu.back();
+}
+
+StatesGroup ImuProcess::imu_preintegration(const StatesGroup& state_in, std::deque<ImuFrame>& v_imu, double end_pose_dt)
+{
+    //std::unique_lock< std::mutex > lock(g_imu_premutex);
+    //StatesGroup                    state_inout = state_in;
+    //
+    //Eigen::Vector3d acc_imu(0, 0, 0), angvel_avr(0, 0, 0), acc_avr(0, 0, 0), vel_imu(0, 0, 0), pos_imu(0, 0, 0);
+    //vel_imu = state_inout.vel_end;
+    //pos_imu = state_inout.pos_end;
+    //Eigen::Matrix3d R_imu(state_inout.rot_end);
+    //Eigen::MatrixXd F_x(Eigen::Matrix< double, DIM_STATE, DIM_STATE >::Identity());
+    //Eigen::MatrixXd cov_w(Eigen::Matrix< double, DIM_STATE, DIM_STATE >::Zero());
+    //double          dt = 0;
+    //int             if_first_imu = 1;
+    //// printf("IMU start_time = %.5f, end_time = %.5f, state_update_time = %.5f, start_delta = %.5f\r\n", v_imu.front()->header.stamp.toSec() -
+    //// g_lidar_star_tim,
+    ////        v_imu.back()->header.stamp.toSec() - g_lidar_star_tim,
+    ////        state_in.last_update_time - g_lidar_star_tim,
+    ////        state_in.last_update_time - v_imu.front()->header.stamp.toSec());
+    //for (std::deque< ImuFrame>::iterator it_imu = v_imu.begin(); it_imu != (v_imu.end() - 1); it_imu++)
+    //{
+    //    // if(g_lidar_star_tim == 0 || state_inout.last_update_time == 0)
+    //    // {
+    //    //   return state_inout;
+    //    // }
+    //    auto&& head  = *(it_imu);
+    //    auto&& tail  = *(it_imu + 1);
+
+    //    angvel_avr << 0.5 * (head.gyr[0] + tail.gyr[0]), 0.5 * (head.gyr[1] + tail.gyr[1]),
+    //        0.5 * (head.gyr[2] + tail.gyr[2]);
+    //    acc_avr << 0.5 * (head.acc[0] + tail.acc[0]),
+    //        0.5 * (head.acc[1] + tail.acc[1]), 0.5 * (head.acc[2] + tail.acc[2]);
+
+    //    angvel_avr -= state_inout.bias_g;
+
+    //    acc_avr = acc_avr - state_inout.bias_a;
+
+    //    if (tail.time < state_inout.last_update_time)
+    //    {
+    //        continue;
+    //    }
+
+    //    if (if_first_imu)
+    //    {
+    //        if_first_imu = 0;
+    //        dt = tail.time  - state_inout.last_update_time;
+    //    }
+    //    else
+    //    {
+    //        dt = tail->header.stamp.toSec() - head->header.stamp.toSec();
+    //    }
+    //    if (dt > 0.05)
+    //    {
+    //        dt = 0.05;
+    //    }
+
+    //    /* covariance propagation */
+    //    Eigen::Matrix3d acc_avr_skew;
+    //    Eigen::Matrix3d Exp_f = Exp(angvel_avr, dt);
+    //    acc_avr_skew << SKEW_SYM_MATRIX(acc_avr);
+    //    // Eigen::Matrix3d Jr_omega_dt = right_jacobian_of_rotion_matrix<double>(angvel_avr*dt);
+    //    Eigen::Matrix3d Jr_omega_dt = Eigen::Matrix3d::Identity();
+    //    F_x.block< 3, 3 >(0, 0) = Exp_f.transpose();
+    //    // F_x.block<3, 3>(0, 9) = -Eye3d * dt;
+    //    F_x.block< 3, 3 >(0, 9) = -Jr_omega_dt * dt;
+    //    // F_x.block<3,3>(3,0)  = -R_imu * off_vel_skew * dt;
+    //    F_x.block< 3, 3 >(3, 3) = Eye3d; // Already the identity.
+    //    F_x.block< 3, 3 >(3, 6) = Eye3d * dt;
+    //    F_x.block< 3, 3 >(6, 0) = -R_imu * acc_avr_skew * dt;
+    //    F_x.block< 3, 3 >(6, 12) = -R_imu * dt;
+    //    F_x.block< 3, 3 >(6, 15) = Eye3d * dt;
+
+    //    Eigen::Matrix3d cov_acc_diag, cov_gyr_diag, cov_omega_diag;
+    //    cov_omega_diag = Eigen::Vector3d(COV_OMEGA_NOISE_DIAG, COV_OMEGA_NOISE_DIAG, COV_OMEGA_NOISE_DIAG).asDiagonal();
+    //    cov_acc_diag = Eigen::Vector3d(COV_ACC_NOISE_DIAG, COV_ACC_NOISE_DIAG, COV_ACC_NOISE_DIAG).asDiagonal();
+    //    cov_gyr_diag = Eigen::Vector3d(COV_GYRO_NOISE_DIAG, COV_GYRO_NOISE_DIAG, COV_GYRO_NOISE_DIAG).asDiagonal();
+    //    // cov_w.block<3, 3>(0, 0) = cov_omega_diag * dt * dt;
+    //    cov_w.block< 3, 3 >(0, 0) = Jr_omega_dt * cov_omega_diag * Jr_omega_dt * dt * dt;
+    //    cov_w.block< 3, 3 >(3, 3) = R_imu * cov_gyr_diag * R_imu.transpose() * dt * dt;
+    //    cov_w.block< 3, 3 >(6, 6) = cov_acc_diag * dt * dt;
+    //    cov_w.block< 3, 3 >(9, 9).diagonal() =
+    //        Eigen::Vector3d(COV_BIAS_GYRO_NOISE_DIAG, COV_BIAS_GYRO_NOISE_DIAG, COV_BIAS_GYRO_NOISE_DIAG) * dt * dt; // bias gyro covariance
+    //    cov_w.block< 3, 3 >(12, 12).diagonal() =
+    //        Eigen::Vector3d(COV_BIAS_ACC_NOISE_DIAG, COV_BIAS_ACC_NOISE_DIAG, COV_BIAS_ACC_NOISE_DIAG) * dt * dt; // bias acc covariance
+
+    //    // cov_w.block<3, 3>(18, 18).diagonal() = Eigen::Vector3d(COV_NOISE_EXT_I2C_R, COV_NOISE_EXT_I2C_R, COV_NOISE_EXT_I2C_R) * dt * dt; // bias
+    //    // gyro covariance cov_w.block<3, 3>(21, 21).diagonal() = Eigen::Vector3d(COV_NOISE_EXT_I2C_T, COV_NOISE_EXT_I2C_T, COV_NOISE_EXT_I2C_T) * dt
+    //    // * dt;  // bias acc covariance cov_w(24, 24) = COV_NOISE_EXT_I2C_Td * dt * dt;
+
+    //    state_inout.cov = F_x * state_inout.cov * F_x.transpose() + cov_w;
+
+    //    R_imu = R_imu * Exp_f;
+    //    acc_imu = R_imu * acc_avr - state_inout.gravity;
+    //    pos_imu = pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt;
+    //    vel_imu = vel_imu + acc_imu * dt;
+    //    angvel_last = angvel_avr;
+    //    acc_s_last = acc_imu;
+
+    //    // cout <<  std::setprecision(3) << " dt = " << dt << ", acc: " << acc_avr.transpose()
+    //    //      << " acc_imu: " << acc_imu.transpose()
+    //    //      << " vel_imu: " << vel_imu.transpose()
+    //    //      << " omega: " << angvel_avr.transpose()
+    //    //      << " pos_imu: " << pos_imu.transpose()
+    //    //       << endl;
+    //    // cout << "Acc_avr: " << acc_avr.transpose() << endl;
+    //}
+
+    //
+    //dt = end_pose_dt;
+
+    //state_inout.last_update_time = v_imu.back()->header.stamp.toSec() + dt;
+    //// cout << "Last update time = " <<  state_inout.last_update_time - g_lidar_star_tim << endl;
+    //
+    //state_inout.vel_end = vel_imu + acc_imu * dt;
+    //state_inout.rot_end = R_imu * Exp(angvel_avr, dt);
+    //state_inout.pos_end = pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt;
+
+    //
+    //
+    //// cout << (state_inout - state_in).transpose() << endl;
+    //return state_inout;
+return state_in;
+}
+
 
 
 void ImuProcess::Process(const MeasureGroup& meas, StatesGroup& stat,
@@ -348,11 +500,10 @@ void ImuProcess::Process(const MeasureGroup& meas, StatesGroup& stat,
             imu_need_init_ = false;
             std::cout << "IMU Initials: Gravity:" <<  stat.gravity[0] << " " <<  stat.gravity[1]<< " " <<  stat.gravity[2] << " " << 
                 mean_acc.norm() << " state.bias_g: " << cov_acc_scale[0] << " " <<  cov_acc_scale[1] << " " <<  cov_acc_scale[2] << " acc covarience : " << cov_acc[0] << " "<< cov_acc[1]<< " " << cov_acc[2] << " gry covarience : "  << cov_gyr[0] << " " << cov_gyr[1] << " " << cov_gyr[2] << std::endl;
-            cov_acc = M3D::Identity() * cov_acc_scale;
-            cov_gyr = M3D::Identity() * cov_gyr_scale;
+            /*cov_acc = M3D::Identity() * cov_acc_scale;
+            cov_gyr = M3D::Identity() * cov_gyr_scale;*/
            
-            std::cout << "IMU Initials: Gravity:" << stat.gravity[0] << " " << stat.gravity[1] << " " << stat.gravity[2] << " " <<
-                mean_acc.norm() << " state.bias_g: " << cov_acc_scale[0] << " " << cov_acc_scale[1] << " " << cov_acc_scale[2] << " acc covarience : " << cov_acc[0] << " " << cov_acc[1] << " " << cov_acc[2] << " gry covarience : " << cov_gyr[0] << " " << cov_gyr[1] << " " << cov_gyr[2] << std::endl;
+            
         }
 
         return;
@@ -371,6 +522,7 @@ void ImuProcess::Process(const MeasureGroup& meas, StatesGroup& stat,
         cov_gyr = M3D::Identity() * cov_gyr_scale;
         only_propag(meas, stat, cur_pcl_un_);
     }
+    //lic_state_propagate(meas, stat);
 }
 
 const bool time_list(BasePoint& x, BasePoint& y)

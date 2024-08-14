@@ -1,16 +1,16 @@
 # 标定结果写出到bag同级同名文件夹
 
 lid_decode:
-  lidar_file_path: E:\\data\\RTK\\RTK\\Lidar
-  imu_file_path:   E:\data\RTK\RTK\Pos\20240606064545_IMU.txt
+  lidar_file_path: E:\data\outdoor\b1_b1-07221901\data\Lidar
+  imu_file_path:   E:\\data\\outdoor\\b1_b1-07221901\\data\\Pos\\20240722110223_IMU.txt
 lid_params:
-  lidar_send_duration: 0.1 # 雷达帧率
+  lidar_send_duration: 1 # 雷达帧率
   #min_detect_distance: 0 # 最小过滤
   #max_detect_distance: 100 # 最大过滤
-  start_process_time: 20    # 开始时间
+  start_process_time: 0    # 开始时间
   #end_process_time:   100  # 结束时间
-  start_process_id:  1     #开始帧id
-  end_process_id:    250 # 结束帧id
+  start_process_id:  10     #开始帧id
+  end_process_id:    50 # 结束帧id
   #lidar_send_duration: 100000  #处理时间
   
   
@@ -45,8 +45,8 @@ motor_intrinsic_parameter:
 #alpha3: 0.000000
 #    dp: [0.000911, -0.008969, 0.000000]
 
-    alpha1:     -0.0053     #0.0435
-    alpha2:     0.0055
+    alpha1:     0.1094 #-0.0053     
+    alpha2:     0.1696  #0.0055
     alpha3:     0.000000
     dp: [-0.00, -0.0150, 0.000000]
 

@@ -51,6 +51,7 @@ namespace ls {
             std::vector<double> dp;
             GetData(bagNode["alpha1"], scanFrameConfigPtr->alphaX);
             GetData(bagNode["alpha2"], scanFrameConfigPtr->alphaY);
+            GetData(bagNode["alpha3"], scanFrameConfigPtr->alphaZ);
             GetData(bagNode["dp"], dp);
             dp.clear();
             scanFrameConfigPtr->dp << dp[0], dp[1], dp[2];

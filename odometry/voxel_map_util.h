@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <mutex>
 #include "IMU_Processing.h"
+#include "kdtree/ikd_Tree.h"
 
 #define HASH_P 116101
 #define MAX_N 10000000000
@@ -163,7 +164,7 @@ public:
     template <typename T>
     void pointBodyToWorld(const StatesGroup& state, const Matrix<T, 3, 1>& pi, Matrix<T, 3, 1>& po) {
         V3D p_body(pi[0], pi[1], pi[2]);
-        p_body = p_body + Lidar_offset_to_IMU;
+        p_body = p_body;
         V3D p_global(state.rot_end * (p_body)+state.pos_end);
         po[0] = p_global(0);
         po[1] = p_global(1);
@@ -174,7 +175,7 @@ public:
     void transformLidar(const StatesGroup& state,
         const shared_ptr<ImuProcess>& p_imu,
         const BaseCloudPtr& input_cloud,
-        BaseCloudPtr& trans_cloud);
+        BaseCloudPtr& trans_cloud, int type = 0);
 
     void build_single_residual(const pointWithCov& pv, const OctoTree* current_octo,
         const int current_layer, const int max_layer,

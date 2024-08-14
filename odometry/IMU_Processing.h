@@ -16,7 +16,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <thread>
-#include "common_lib.h"
+#include "internal/common_lib.h"
 #include "internal/PlyIo.hpp"
 /// *************Preconfiguration
 
@@ -56,6 +56,7 @@ public:
     V3D Lid_offset_to_IMU;
     double first_lidar_time;
     bool imu_en;
+    bool imu_need_init_;
 
 private:
     void IMU_init(const MeasureGroup& meas, StatesGroup& state, int& N);
@@ -66,6 +67,9 @@ private:
 
     void SaveLidarFrame(BaseCloudPtr  basecloud);
 
+    void lic_state_propagate(const MeasureGroup& meas, StatesGroup& state_inout);
+
+    StatesGroup imu_preintegration(const StatesGroup& state_in, std::deque<ImuFrame>& v_imu, double end_pose_dt);
     ImuFrame last_imu_;
     deque<ImuFrame> v_imu_;
     BaseCloudPtr cur_pcl_un_;
@@ -80,7 +84,7 @@ private:
     double time_last_scan_;
     int init_iter_num = 1;
     bool b_first_frame_ ;
-    bool imu_need_init_ ;
+    
 };
 
 const bool time_list(BasePoint& x, BasePoint& y);

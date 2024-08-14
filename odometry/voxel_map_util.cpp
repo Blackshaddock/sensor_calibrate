@@ -15,6 +15,8 @@ void OctoTree::init_plane(const std::vector<pointWithCov>& points, Plane* plane)
             plane->covariance += pv.point * pv.point.transpose();
             plane->center += pv.point;
         }
+
+        //https://blog.csdn.net/jacken123456/article/details/131181592 点云计算协方差
         plane->center = plane->center / plane->points_size;
         plane->covariance = plane->covariance / plane->points_size -
             plane->center * plane->center.transpose();
@@ -30,6 +32,7 @@ void OctoTree::init_plane(const std::vector<pointWithCov>& points, Plane* plane)
         Eigen::Vector3d evecMin = evecs.real().col(evalsMin);
         Eigen::Vector3d evecMid = evecs.real().col(evalsMid);
         Eigen::Vector3d evecMax = evecs.real().col(evalsMax);
+
         // plane covariance calculation
         Eigen::Matrix3d J_Q;
         J_Q << 1.0 / plane->points_size, 0, 0, 0, 1.0 / plane->points_size, 0, 0, 0,
@@ -42,9 +45,7 @@ void OctoTree::init_plane(const std::vector<pointWithCov>& points, Plane* plane)
                 Eigen::Matrix3d F;
                 for (int m = 0; m < 3; m++) {
                     if (m != (int)evalsMin) {
-                        Eigen::Matrix<double, 1, 3> F_m =
-                            (points[i].point - plane->center).transpose() /
-                            ((plane->points_size) * (evalsReal[evalsMin] - evalsReal[m])) *
+                        Eigen::Matrix<double, 1, 3> F_m = (points[i].point - plane->center).transpose() / ((plane->points_size) * (evalsReal[evalsMin] - evalsReal[m])) *
                             (evecs.real().col(m) * evecs.real().col(evalsMin).transpose() +
                                 evecs.real().col(evalsMin) * evecs.real().col(m).transpose());
                         F.row(m) = F_m;
@@ -60,19 +61,14 @@ void OctoTree::init_plane(const std::vector<pointWithCov>& points, Plane* plane)
                 plane->plane_cov += J * points[i].cov * J.transpose();
             }
 
-            plane->normal << evecs.real()(0, evalsMin), evecs.real()(1, evalsMin),
-                evecs.real()(2, evalsMin);
-            plane->y_normal << evecs.real()(0, evalsMid), evecs.real()(1, evalsMid),
-                evecs.real()(2, evalsMid);
-            plane->x_normal << evecs.real()(0, evalsMax), evecs.real()(1, evalsMax),
-                evecs.real()(2, evalsMax);
+            plane->normal << evecs.real()(0, evalsMin), evecs.real()(1, evalsMin), evecs.real()(2, evalsMin);
+            plane->y_normal << evecs.real()(0, evalsMid), evecs.real()(1, evalsMid),evecs.real()(2, evalsMid);
+            plane->x_normal << evecs.real()(0, evalsMax), evecs.real()(1, evalsMax),evecs.real()(2, evalsMax);
             plane->min_eigen_value = evalsReal(evalsMin);
             plane->mid_eigen_value = evalsReal(evalsMid);
             plane->max_eigen_value = evalsReal(evalsMax);
             plane->radius = sqrt(evalsReal(evalsMax));
-            plane->d = -(plane->normal(0) * plane->center(0) +
-                plane->normal(1) * plane->center(1) +
-                plane->normal(2) * plane->center(2));
+            plane->d = -(plane->normal(0) * plane->center(0) + plane->normal(1) * plane->center(1) + plane->normal(2) * plane->center(2));
             plane->is_plane = true;
             if (plane->last_update_points_size == 0) {
                 plane->last_update_points_size = plane->points_size;
@@ -105,19 +101,14 @@ void OctoTree::init_plane(const std::vector<pointWithCov>& points, Plane* plane)
                 plane->is_update = true;
             }
             plane->is_plane = false;
-            plane->normal << evecs.real()(0, evalsMin), evecs.real()(1, evalsMin),
-                evecs.real()(2, evalsMin);
-            plane->y_normal << evecs.real()(0, evalsMid), evecs.real()(1, evalsMid),
-                evecs.real()(2, evalsMid);
-            plane->x_normal << evecs.real()(0, evalsMax), evecs.real()(1, evalsMax),
-                evecs.real()(2, evalsMax);
+            plane->normal << evecs.real()(0, evalsMin), evecs.real()(1, evalsMin), evecs.real()(2, evalsMin);
+            plane->y_normal << evecs.real()(0, evalsMid), evecs.real()(1, evalsMid), evecs.real()(2, evalsMid);
+            plane->x_normal << evecs.real()(0, evalsMax), evecs.real()(1, evalsMax), evecs.real()(2, evalsMax);
             plane->min_eigen_value = evalsReal(evalsMin);
             plane->mid_eigen_value = evalsReal(evalsMid);
             plane->max_eigen_value = evalsReal(evalsMax);
             plane->radius = sqrt(evalsReal(evalsMax));
-            plane->d = -(plane->normal(0) * plane->center(0) +
-                plane->normal(1) * plane->center(1) +
-                plane->normal(2) * plane->center(2));
+            plane->d = -(plane->normal(0) * plane->center(0) + plane->normal(1) * plane->center(1) +plane->normal(2) * plane->center(2));
         }
     }
 
@@ -274,8 +265,9 @@ void OctoTree::UpdateOctoTree(const pointWithCov& pv) {
                 if (update_enable_) {
                     new_points_num_++;
                     all_points_num_++;
+                    temp_points_.push_back(pv);
                     if (update_cov_enable_) {
-                        temp_points_.push_back(pv);
+                        //temp_points_.push_back(pv);
                     }
                     else {
                         new_points_.push_back(pv);
@@ -288,12 +280,12 @@ void OctoTree::UpdateOctoTree(const pointWithCov& pv) {
                     }
                     if (all_points_num_ >= max_cov_points_size_) {
                         update_cov_enable_ = false;
-                        std::vector<pointWithCov>().swap(temp_points_);
+                        //std::vector<pointWithCov>().swap(temp_points_);
                     }
                     if (all_points_num_ >= max_points_size_) {
                         update_enable_ = false;
-                        plane_ptr_->update_enable = false;
-                        std::vector<pointWithCov>().swap(new_points_);
+                        //plane_ptr_->update_enable = false;
+                        //std::vector<pointWithCov>().swap(new_points_);
                     }
                 }
                 else {
@@ -513,12 +505,13 @@ void pointBodyToWorld(const StatesGroup& state,   BasePoint const * const pi,  B
 void transformLidar(const StatesGroup& state,
     const shared_ptr<ImuProcess>& p_imu,
     const BaseCloudPtr& input_cloud,
-    BaseCloudPtr& trans_cloud) {
+    BaseCloudPtr& trans_cloud, int type) {
     trans_cloud->clear();
     for (size_t i = 0; i < input_cloud->size(); i++) {
         BasePoint p_c = input_cloud->points[i];
         Eigen::Vector3d p(p_c.x, p_c.y, p_c.z);
-        // p = p_imu->Lid_rot_to_IMU * p + p_imu->Lid_offset_to_IMU;
+        if(type)
+            p = p_imu->Lid_rot_to_IMU * p + p_imu->Lid_offset_to_IMU;
         p = state.rot_end * p + state.pos_end;
         BasePoint pi = p_c;
         pi.x = p(0);
@@ -536,12 +529,17 @@ void build_single_residual(const pointWithCov& pv, const OctoTree* current_octo,
     Eigen::Vector3d p_w = pv.point_world;
     if (current_octo->plane_ptr_->is_plane) {
         Plane& plane = *current_octo->plane_ptr_;
+        if (plane.points_size < 20)
+            return;
         Eigen::Vector3d p_world_to_center = p_w - plane.center;
         double proj_x = p_world_to_center.dot(plane.x_normal);
         double proj_y = p_world_to_center.dot(plane.y_normal);
+
         float dis_to_plane =
             fabs(plane.normal(0) * p_w(0) + plane.normal(1) * p_w(1) +
                 plane.normal(2) * p_w(2) + plane.d);
+
+
         float dis_to_center =
             (plane.center(0) - p_w(0)) * (plane.center(0) - p_w(0)) +
             (plane.center(1) - p_w(1)) * (plane.center(1) - p_w(1)) +
@@ -554,11 +552,20 @@ void build_single_residual(const pointWithCov& pv, const OctoTree* current_octo,
             J_nq.block<1, 3>(0, 3) = -plane.normal;
             double sigma_l = J_nq * plane.plane_cov * J_nq.transpose();
             sigma_l += plane.normal.transpose() * pv.cov * plane.normal;
-            if (dis_to_plane < sigma_num * sqrt(sigma_l)) {
+            if (dis_to_plane <  0.1/*sigma_num * sqrt(abs(sigma_l))*/) {
                 is_sucess = true;
-                double this_prob = 1.0 / (sqrt(sigma_l)) *
+                single_ptpl.point = pv.point;
+                single_ptpl.plane_cov = plane.plane_cov;
+                single_ptpl.normal = plane.normal;
+                single_ptpl.center = plane.center;
+                single_ptpl.d = plane.d;
+                single_ptpl.layer = current_layer;
+
+                
+               /* double this_prob = 1.0 / (sqrt(sigma_l)) *
                     exp(-0.5 * dis_to_plane * dis_to_plane / sigma_l);
-                if (this_prob > prob) {
+                if (this_prob > prob) 
+                {
                     prob = this_prob;
                     single_ptpl.point = pv.point;
                     single_ptpl.plane_cov = plane.plane_cov;
@@ -566,7 +573,7 @@ void build_single_residual(const pointWithCov& pv, const OctoTree* current_octo,
                     single_ptpl.center = plane.center;
                     single_ptpl.d = plane.d;
                     single_ptpl.layer = current_layer;
-                }
+                }*/
                 return;
             }
             else {
@@ -783,7 +790,9 @@ void BuildResidualListNormal(
 void calcBodyCov(Eigen::Vector3d& pb, const float range_inc,
     const float degree_inc, Eigen::Matrix3d& cov) {
     float range = sqrt(pb[0] * pb[0] + pb[1] * pb[1] + pb[2] * pb[2]);
+
     float range_var = range_inc * range_inc;
+
     Eigen::Matrix2d direction_var;
     direction_var << pow(sin(DEG2RAD(degree_inc)), 2), 0, 0,
         pow(sin(DEG2RAD(degree_inc)), 2);
@@ -792,11 +801,14 @@ void calcBodyCov(Eigen::Vector3d& pb, const float range_inc,
     Eigen::Matrix3d direction_hat;
     direction_hat << 0, -direction(2), direction(1), direction(2), 0,
         -direction(0), -direction(1), direction(0), 0;
+
     Eigen::Vector3d base_vector1(1, 1,
         -(direction(0) + direction(1)) / direction(2));
     base_vector1.normalize();
+
     Eigen::Vector3d base_vector2 = base_vector1.cross(direction);
     base_vector2.normalize();
+
     Eigen::Matrix<double, 3, 2> N;
     N << base_vector1(0), base_vector2(0), base_vector1(1), base_vector2(1),
         base_vector1(2), base_vector2(2);
@@ -804,5 +816,9 @@ void calcBodyCov(Eigen::Vector3d& pb, const float range_inc,
     cov = direction * range_var * direction.transpose() +
         A * direction_var * A.transpose();
 };
+
+
+
+
 
 
