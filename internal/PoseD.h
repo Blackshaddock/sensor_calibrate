@@ -1,6 +1,8 @@
-#pragma once
+#ifndef __POSED_H__
+#define __POSED_H__
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <Eigen/Dense>
 #include <vector>
 
 // namespace of sensor calibration
@@ -9,8 +11,13 @@ namespace sc {
 struct PoseD {
 	Eigen::Vector3d p;
 	Eigen::Quaterniond q;
+	double time;
 	
-	PoseD() : p(0, 0, 0), q(1, 0, 0, 0) {}
+	PoseD() : p(0, 0, 0), q(1, 0, 0, 0), time(0.0) {}
+
+	bool operator<(const PoseD other) const {
+		return this->time < other.time;
+	}
 
 	void SetQuaternionRPY(const Eigen::Quaterniond& qua) {
 		this->q = qua;
@@ -73,3 +80,4 @@ struct PointPose {
 typedef std::vector<PointPose> PointPoses;
 
 }// namespace sc
+#endif

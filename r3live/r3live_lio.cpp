@@ -372,6 +372,8 @@ int R3LIVE::service_LIO_update()
     BaseCloudPtr laserCloudOri(new BaseCloud());
     BaseCloudPtr coeffSel(new BaseCloud());
 
+
+    
     /*** variables initialize ***/
     FOV_DEG = fov_deg + 10;
     HALF_FOV_COS = std::cos((fov_deg + 10.0) * 0.5 * PI_M / 180.0);
@@ -1012,6 +1014,7 @@ bool R3LIVE::JugeStatic(MeasureGroup& meas)
 R3LIVE::R3LIVE()
 {
     m_pThread = nullptr;
+    
     featsFromMap = boost::make_shared<BaseCloud>();
     cube_points_add = boost::make_shared<BaseCloud>();
     laserCloudFullRes2 = boost::make_shared<BaseCloud>();

@@ -5,8 +5,19 @@
 
 // namespace of sensor calibration
 namespace sc {
-
-bool CreateDir(const std::string& path) {
+	std::vector<std::string> split(const std::string& str_in, char delim)
+	{
+		std::vector<std::string> tokens;
+		std::stringstream ss(str_in);
+		std::string item;
+		while (std::getline(ss, item, delim)) {
+			if (!item.empty()) {
+				tokens.push_back(item);
+			}
+		}
+		return tokens;
+	}
+	bool CreateDir(const std::string& path) {
 	if (!bfs::exists(path)) {
 		boost::system::error_code ec;
 		if (!bfs::create_directory(path, ec)) {
@@ -33,7 +44,7 @@ std::string GetFileExtention(const std::string& path) {
 	return pathTmp.extension().generic_string();
 }
 
-std::vector<std::string>& GetFileNamesFromDir(const std::string& path)
+std::vector<std::string> GetFileNamesFromDir(const std::string& path)
 {
 	std::vector<std::string> filenames;
 	for (const auto& path : bfs::directory_iterator(path))
@@ -94,6 +105,31 @@ bool IsExists(const std::string& path)
 		return true;
 	}
 	return false;
+}
+
+Eigen::Matrix3d GetRFromZYX(double alphax, double alphay, double alphaz)
+{
+	Eigen::Matrix3d res_r;
+	double cx = cos(alphax * DEG2RAD), sx = sin(alphax * DEG2RAD);
+	double cy = cos(alphay * DEG2RAD), sy = sin(alphay * DEG2RAD);
+	double cz = cos(alphaz * DEG2RAD), sz = sin(alphaz * DEG2RAD);
+	
+	res_r << cy * cz, cy* sz, -sy,
+		-cx * sz + sx * sy * cz, cx* cz + sx * sy * sz, sx* cy,
+		sx* sz + cx * sy * cz, -sx * cz + cx * sy * sz, cx* cy;
+	return res_r;
+	
+}
+
+void GetRFromZYX(double alphax, double alphay, double alphaz, Eigen::Matrix3d& R)
+{
+	double cx = cos(alphax * DEG2RAD), sx = sin(alphax * DEG2RAD);
+	double cy = cos(alphay * DEG2RAD), sy = sin(alphay * DEG2RAD);
+	double cz = cos(alphaz * DEG2RAD), sz = sin(alphaz * DEG2RAD);
+
+	R << cy * cz, cy* sz, -sy,
+		-cx * sz + sx * sy * cz, cx* cz + sx * sy * sz, sx* cy,
+		sx* sz + cx * sy * cz, -sx * cz + cx * sy * sz, cx* cy;
 }
 
 

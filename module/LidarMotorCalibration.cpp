@@ -617,28 +617,28 @@ void LidarMotorCalibration::GetNormal(BaseCloudPtr &cloud, std::vector<std::vect
 		BaseCloudPtr cloudSearch(new BaseCloud);
 		pcl::copyPointCloud(*cloud, knnIdx, *cloudSearch);
 
-		pcl::PCA<BasePoint> pca;
-		pca.setInputCloud(cloudSearch);
-		Eigen::Matrix3f eigeVector = pca.getEigenVectors();
-		Eigen::Matrix<float, 3, 1> eigenValues;
+		//pcl::PCA<BasePoint> pca;
+		//pca.setInputCloud(cloudSearch);
+		//Eigen::Matrix3f eigeVector = pca.getEigenVectors();
+		//Eigen::Matrix<float, 3, 1> eigenValues;
 
-		eigenValues = pca.getEigenValues();
-		Eigen::Vector3f vect_2 = eigeVector.col(2);// please fit to your own coordinate
-		Eigen::Vector3f vect_1 = Eigen::Vector3f(pt.x, pt.y, pt.z);
-		double cosValNew = vect_1.dot(vect_2) / (vect_1.norm()*vect_2.norm());
-		double angleNew = acos(cosValNew) * 180 / M_PI;
-		if (angleNew > 90) {
-			vect_2 = -vect_2;
-		}
+		//eigenValues = pca.getEigenValues();
+		//Eigen::Vector3f vect_2 = eigeVector.col(2);// please fit to your own coordinate
+		//Eigen::Vector3f vect_1 = Eigen::Vector3f(pt.x, pt.y, pt.z);
+		//double cosValNew = vect_1.dot(vect_2) / (vect_1.norm()*vect_2.norm());
+		//double angleNew = acos(cosValNew) * 180 / M_PI;
+		//if (angleNew > 90) {
+		//	vect_2 = -vect_2;
+		//}
 
-		indexes[i] = std::move(knnIdx);
+		//indexes[i] = std::move(knnIdx);
 
-		pt.normal_x = vect_2.x();
-		pt.normal_y = vect_2.y();
-		pt.normal_z = vect_2.z();
-		pt.data[3] = eigenValues(0) / (eigenValues(2) + 1e-4);  // normalConfidence;
-		pt.data_n[3] = eigenValues(2) / eigenValues.array().sum();  // curvature;
-		fout << pt.normal_z << " " << pt.data_n[3] << std::endl;
+		//pt.normal_x = vect_2.x();
+		//pt.normal_y = vect_2.y();
+		//pt.normal_z = vect_2.z();
+		//pt.data[3] = eigenValues(0) / (eigenValues(2) + 1e-4);  // normalConfidence;
+		//pt.data_n[3] = eigenValues(2) / eigenValues.array().sum();  // curvature;
+		//fout << pt.normal_z << " " << pt.data_n[3] << std::endl;
 	}
 	fout.close();
 }

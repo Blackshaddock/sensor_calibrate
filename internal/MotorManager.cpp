@@ -4,7 +4,7 @@
 #include <Eigen/Geometry>
 #include <glog/logging.h>
 #include <iomanip>
-
+#include <cmath>
 // namespace of sensor calibration
 namespace sc {
 

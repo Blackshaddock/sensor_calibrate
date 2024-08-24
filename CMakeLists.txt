@@ -18,6 +18,8 @@ set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL} /
 #ADD_SUBDIRECTORY(plane_detection)
 
 include_directories(${3RDPARTY_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR})
+message(${3RDPARTY_INCLUDE_DIRS})
+
 
 file(GLOB INTERNAL_SRC "internal/*.h" "internal/*.cpp" "internal/*.hpp")
 file(GLOB EXAMPLE_SRC "example/*.h" "example/*.cpp" "example/*.hpp")
@@ -27,9 +29,10 @@ file(GLOB IO_SRC "io/*.h"  "io/*.cpp")
 file(GLOB SCAN_SRC "scan/*.h" "scan/*.cpp")
 file(GLOB CONFIG_FILE "config/*.yaml")
 file(GLOB NDTOMP_SRC "ndt_omp/*.h" "ndt_omp/*.cpp" "ndt_omp/*.hpp")
-#file(GLOB ODOMETRY_SRC "odometry/*.h"  "odometry/*.cpp")
+file(GLOB ODOMETRY_SRC "odometry/*.h"  "odometry/*.cpp")
 file(GLOB KDTREE_SRC "kdtree/*.h" "kdtree/*.cpp")
 file(GLOB R3LIVE_SRC "r3live/*.h" "r3live/*.cpp" )
+file(GLOB ColorPoint_SRC "color_point/*.h" "color_point/*.cpp")
 
 source_group(internal FILES ${INTERNAL_SRC})
 source_group(example FILES ${EXAMPLE_SRC})
@@ -39,13 +42,14 @@ source_group(io FILES ${IO_SRC})
 source_group(scan FILES ${SCAN_SRC})
 source_group(config FILES ${CONFIG_FILE})
 source_group(ndtomp FILES ${NDTOMP_SRC})
-#source_group(odometry FILES ${ODOMETRY_SRC})
+source_group(odometry FILES ${ODOMETRY_SRC})
 source_group(kdtree FILES ${KDTREE_SRC})
 source_group(r3live FILES ${R3LIVE_SRC})
+source_group(colorpoint FILES ${ColorPoint_SRC})
 
 # ADD_SUBDIRECTORY(PlaneDetection)
 
-add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC} ${SCAN_SRC} ${CONFIG_FILE} ${NDTOMP_SRC} ${KDTREE_SRC} ${R3LIVE_SRC})
+add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC} ${SCAN_SRC} ${CONFIG_FILE} ${NDTOMP_SRC} ${KDTREE_SRC} ${R3LIVE_SRC} ${ColorPoint_SRC})
 set_property(TARGET lidar_motor_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 target_link_libraries(lidar_motor_calib  ${3RDPARTY_LIBRARIES} )
 target_compile_options(lidar_motor_calib 

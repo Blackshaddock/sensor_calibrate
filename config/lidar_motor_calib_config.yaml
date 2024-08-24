@@ -14,6 +14,26 @@ lid_params:
   #lidar_send_duration: 100000  #处理时间
   
   
+color_params:
+    image_path:      E:\data\RTK\RTK\Image
+    pos_file_path:   E:\data\RTK\RTK\Pos\traj.xyz
+    use_time:        false
+    lidar_file_path: E:\data\RTK\RTK\Pos\result.ply
+    surround_radius:  20
+
+cam_params:
+    Rcam2lid:    [-90.3770, 0.3550, 1.7860]      
+    Tcam2lid:    [-0.0063, -0.0346, 0.0464]
+    Rcam2lid0:   [-89.2030, 1.3440, 81.8800]
+    Tcam2lid0:   [-0.1349, 0.0711, 0.0035]
+    Rcam2lid2:   [-90.4890, -0.5730, -77.5350]
+    Tcam2lid2:   [0.1425, 0.0402,  0.0162]
+    camIntrisic: [1025.45, 1025.45, -72.491, -13.6625]
+    camIntrisic0: [940.2, 940.2, -53.969, -23.955]
+    camIntrisic2: [930.3, 930.3, 51.8485,-31.817 ]
+    camNum: 1
+
+
 calibration_config:
    optimize_motor_intrisinc_param: true         # 优化编码器内参：alpha1, alpha2, dP
    optimize_motor_angle_correct_param: true     # 优化编码器360个角度修正量

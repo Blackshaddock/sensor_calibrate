@@ -3,6 +3,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <glog/logging.h>
 #include <yaml-cpp/yaml.h>
+#include <Eigen/Core>
 
 // namespace of sensor calibration
 namespace sc {
@@ -25,6 +26,7 @@ struct sort_function {
 
 };
 
+std::vector<std::string> split(const std::string& str_in, char delim = ' ');
 
 bool CreateDir(const std::string& path);
 
@@ -35,7 +37,7 @@ std::string GetRootDirectory(const std::string& path);
 std::string GetFileExtention(const std::string& path);
 
 
-std::vector<std::string>& GetFileNamesFromDir(const std::string& path);
+std::vector<std::string> GetFileNamesFromDir(const std::string& path);
 
 bool IsDir(const std::string& path);
 
@@ -44,6 +46,12 @@ bool GetFileNamesFromDir(const std::string& path, std::vector<std::string>& file
 bool valid_file(const std::string& path);
 
 bool IsExists(const std::string& path);
+
+//根据欧拉角获取旋转矩阵
+Eigen::Matrix3d GetRFromZYX(double alphax, double alphay, double alphaz);
+
+void GetRFromZYX(double alphax, double alphay, double alphaz, Eigen::Matrix3d &R);
+
 
 template <typename T>
 bool GetData(const YAML::Node& node, T& value) {

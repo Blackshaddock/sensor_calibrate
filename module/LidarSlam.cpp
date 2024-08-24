@@ -53,8 +53,9 @@ namespace ls {
             GetData(bagNode["alpha2"], scanFrameConfigPtr->alphaY);
             GetData(bagNode["alpha3"], scanFrameConfigPtr->alphaZ);
             GetData(bagNode["dp"], dp);
-            dp.clear();
+            
             scanFrameConfigPtr->dp << dp[0], dp[1], dp[2];
+            dp.clear();
             GetData(bagNode["rotLidar2Motor"], dp);
             scanFrameConfigPtr->rotLidar2Motor << dp[0], dp[1], dp[2], dp[3], dp[4], dp[5], dp[6], dp[7], dp[8], dp[9], dp[10], dp[11], dp[12],
                 dp[13], dp[14], dp[15];
