@@ -1,4 +1,4 @@
-#include "General_Client.h"
+﻿#include "General_Client.h"
 #include <fstream>
 using namespace geosun;
 
@@ -6,17 +6,26 @@ using namespace geosun;
 
 SocketClient::SocketClient()
 {
+    
 	m_pConf = std::make_shared<SocketClientConfig>();
     m_pSensorCfg = std::make_shared<SensorOptions>();
-    s_sPrjPath = "E:\\data\\RTK\\RTK\\";
+    m_sPrjPath = "E:\\data\\RTK\\RTK\\";
     m_bStartFlag = false;
-    s_sVerPath = "";
+    m_sVerPath = "";
+    m_pProcessClent = nullptr;
+    m_pProcessAg310 = nullptr;
+    m_pProcessLidar = nullptr;
+
 }
 
 SocketClient::SocketClient(SocketClientConfig::Ptr config) : m_pConf(config) {
-    s_sPrjPath = "E:\\data\\RTK\\RTK\\";
+    m_pSensorCfg = std::make_shared<SensorOptions>();
+    m_sPrjPath = "E:\\data\\RTK\\RTK\\";
     m_bStartFlag = false;
-    s_sVerPath = "";
+    m_sVerPath = "";
+    m_pProcessClent = nullptr;
+    m_pProcessAg310 = nullptr;
+    m_pProcessLidar = nullptr;
 }
 
 bool geosun::SocketClient::Run()
@@ -29,6 +38,7 @@ bool geosun::SocketClient::Run()
                 char str[DATETIME_FMT_BUFLEN] = { 0 };
                 datetime_t dt = datetime_now();
                 datetime_fmt(&dt, str);
+                ComputerSize();
                 CompressMessage();
                 channel->send(m_jSocketReturn.dump());
             }
@@ -49,8 +59,8 @@ bool geosun::SocketClient::Run()
     };
 
     ApplicantApi();
-
-    
+    m_pProcessClent = new boost::thread(boost::bind(&SocketClient::ProcessClent, this));
+    //m_pProcessClent->join();
     m_wServer.port = m_pConf->s_iPort;
     m_wServer.ws = &m_wWs;
     m_wServer.service = &m_hRouter;
@@ -61,10 +71,32 @@ bool geosun::SocketClient::Run()
 
 bool geosun::SocketClient::ApplicantApi()
 {
-    // �豸����
+    //LOG_INFO("Single thread test: Info log message");
+    // 
+    m_hRouter.POST("/GeoSun_Test", [&](const HttpContextPtr& ctx)
+        {
+            try {
+                m_jReturnValue.clear();
+                m_jReceiveValue = ctx->json();
+                
+            }
+            catch (std::exception& e)
+            {
+                LOG_INFO("API GeoSun Test %s", e.what());
+                m_jReturnValue["status"] = false;
+            }
+            catch (...)
+            {
+                LOG_INFO("API GeoSun Test Unknow error ");
+                m_jReturnValue["status"] = false;
+            }
+            return ctx->send(m_jReturnValue.dump(), ctx->type());
+        });
+    
+    // 设备连接
     m_hRouter.POST("/GeoSun_Connect", [&](const HttpContextPtr& ctx)
         {
-            //1. �ж��Ƿ��Ѿ����豸����������,
+            //1. 判断是否已经有设备进行了链接,
             try {
                 m_jReturnValue.clear();
                 m_jReturnValue["status"] = true;
@@ -77,15 +109,15 @@ bool geosun::SocketClient::ApplicantApi()
                     }
                 }
                 m_jReturnValue["connect_flag"] = true;
-                if (IsExists(s_sVerPath))
+                if (IsExists(m_sVerPath))
                 {
-                    fstream fd(s_sVerPath);
+                    std::fstream fd(m_sVerPath);
                     std::getline(fd, m_pSensorCfg->s_pComputerCfg->s_sVersion);
                     m_jReturnValue["device_version"] = m_pSensorCfg->s_pComputerCfg->s_sVersion;
                 }
-                if (IsExists(s_sDeviceSN))
+                if (IsExists(m_sDeviceSN))
                 {
-                    fstream fd(s_sDeviceSN);
+                    std::fstream fd(m_sDeviceSN);
                     std::getline(fd, m_pSensorCfg->s_pComputerCfg->s_sDeviceSN);
                     m_jReturnValue["device_sn"] = m_pSensorCfg->s_pComputerCfg->s_sDeviceSN;
                 }
@@ -93,13 +125,13 @@ bool geosun::SocketClient::ApplicantApi()
             }
             catch (std::exception& e)
             {
-                std::cerr << e.what() << std::endl;
+                LOG_INFO("API GeoSun Connect %s", e.what());
                 m_jReturnValue["status"] = false;
 
             }
             catch (...)
             {
-                std::cerr << "GeoSun_Connect Unknow error" << std::endl;
+                LOG_INFO("API GeoSun Connect Unknow error ");
                 m_jReturnValue["status"] = false;
 
             }
@@ -107,7 +139,7 @@ bool geosun::SocketClient::ApplicantApi()
         });
 
 
-    //�Ͽ��豸����
+    //断开设备连接
     m_hRouter.POST("/GeoSun_DisConnect", [&](const HttpContextPtr& ctx)
         {
             try {
@@ -116,18 +148,18 @@ bool geosun::SocketClient::ApplicantApi()
             }
             catch (std::exception& e)
             {
-                std::cerr << e.what() << std::endl;
+                LOG_INFO("API GeoSun DisConnect %s", e.what());
                 m_jReturnValue["status"] = false;
             }
             catch (...)
             {
-                std::cerr << "GeoSun_DisConnect Unknow error" << std::endl;
+                LOG_INFO("API GeoSun DisConnect Unknow error ");
                 m_jReturnValue["status"] = false;
             }
             return ctx->send(m_jReturnValue.dump(), ctx->type());
         });
 
-    //�Ƿ�֧�ֶ��豸����
+    //是否支持多设备连接
     m_hRouter.POST("/GeoSun_MultDevice", [&](const HttpContextPtr& ctx)
         {
             try {
@@ -146,19 +178,19 @@ bool geosun::SocketClient::ApplicantApi()
             }
             catch (std::exception& e)
             {
-                std::cerr << e.what() << std::endl;
+                LOG_INFO("API GeoSun MultDevice %s", e.what());
                 m_jReturnValue["status"] = false;
             }
             catch (...)
             {
-                std::cerr << "GeoSun_MultDevice Unknow error" << std::endl;
+                LOG_INFO("API GeoSun MultDevice Unknow error ");
                 m_jReturnValue["status"] = false;
             }
             return ctx->send(m_jReturnValue.dump(), ctx->type());
         });
 
 
-    //��ʼ�ɼ���ֹͣ�ɼ�
+    //开始采集或停止采集
     m_hRouter.POST("/GeoSun_StartAndStop", [&](const HttpContextPtr& ctx)
         {
             try {
@@ -168,23 +200,25 @@ bool geosun::SocketClient::ApplicantApi()
                 {
                     m_pSensorCfg->s_pComputerCfg->s_sGlobalStatus = "Prepare";
                     //GetImgBase64(m_jReturnValue);
+                    SendSocketData(m_pLidarSocket, std::to_string(1).c_str());
                     return ctx->send(m_jReturnValue.dump());
                 }
                 else if (m_jReceiveValue["input_status"] == "stop")
                 {
                     m_pSensorCfg->s_pComputerCfg->s_sGlobalStatus = "Stopping";
+                    SendSocketData(m_pAg310Socket, std::to_string(2).c_str());
                 }
 
 
             }
-            catch (exception& e)
+            catch (std::exception& e)
             {
-                std::cerr << e.what() << std::endl;
+                LOG_INFO("API GeoSun StartAndStop %s", e.what());
                 m_jReturnValue["status"] = false;
             }
             catch (...)
             {
-                std::cerr << "GeoSun_StartAndStop Unknow error" << std::endl;
+                LOG_INFO("API GeoSun StartAndStop Unknow error ");
                 m_jReturnValue["status"] = false;
             }
             return ctx->send(m_jReturnValue.dump());
@@ -192,7 +226,7 @@ bool geosun::SocketClient::ApplicantApi()
         });
 
 
-     //��ȡͼƬ�ӿ�
+     //获取图片接口
     m_hRouter.POST("/GeoSun_GetImage", [&](const HttpContextPtr& ctx)
         {
             try {
@@ -200,25 +234,106 @@ bool geosun::SocketClient::ApplicantApi()
                 m_jReceiveValue = ctx->json();
                 GetImgBase64(m_jReturnValue, m_jReceiveValue["image_count"]);
             }
-            catch (exception& e)
+            catch (std::exception& e)
             {
-                std::cerr << e.what() << std::endl;
+                LOG_INFO("API GeoSun GetImage %s", e.what());
                 m_jReturnValue["status"] = false;
             }
             catch (...)
             {
-                std::cerr << "GeoSun_GetImage Unknow error" << std::endl;
+                LOG_INFO("API GeoSun GetImage Unknow error ");
                 m_jReturnValue["status"] = false;
             }
             return ctx->send(m_jReturnValue.dump());
         });
 
-
     
+    //设置相机的帧率
+    m_hRouter.POST("/GeoSun_CamParams", [&](const HttpContextPtr& ctx)
+        {
+            try {
+                m_jReturnValue.clear();
+                m_jReceiveValue = ctx->json();
+                if (m_jReceiveValue["input_status"] == "get")
+                {
+                    m_jReturnValue["status"] = true;
+                    //TODO
+                    
+                    //
 
+                    m_jReturnValue["camera_fps"] = m_pSensorCfg->s_pCamCfg->s_dCamFps;
+                }
+                else if (m_jReceiveValue["input_status"] == "set")
+                {
+                    m_pSensorCfg->s_pCamCfg->s_dCamFps = m_jReceiveValue["camera_fps"];
+                    m_jReturnValue["status"] = true;
+                    m_jReturnValue["camera_fps"] = m_pSensorCfg->s_pCamCfg->s_dCamFps;
 
+                }
+            }
+            catch (std::exception& e)
+            {
+                LOG_INFO("API GeoSun Test %s", e.what());
+                m_jReturnValue["status"] = false;
+            }
+            catch (...)
+            {
+                LOG_INFO("API GeoSun Test Unknow error ");
+                m_jReturnValue["status"] = false;
+            }
+            return ctx->send(m_jReturnValue.dump(), ctx->type());
+        });
 
+    //设置激光器行高 点频 扫描速度 视场角 角分辨率
+    m_hRouter.POST("/GeoSun_LidarParams", [&](const HttpContextPtr& ctx)
+        {
+            try {
+                m_jReturnValue.clear();
+                m_jReceiveValue = ctx->json();
+                Json j;
+                std::ofstream out("D:\\test1.json");
+                std::cout << m_jReceiveValue.dump() << std::endl;
+                if (m_jReceiveValue["input_status"] == "get")
+                {
+                    if (IsExists("D:\\lidarparams.json"))
+                    {
+                        std::ifstream jfile("D:\\lidarparams.json");
+                        
+                        jfile >> j;
+                        std::cout << j.at("data") << std::endl;
+                       /* out << j.dump(4) << std::endl;
+                        out.flush();
+                        out.close();*/
+                        m_jReturnValue["data"] = j.at("data");
+                        m_jReturnValue["lidar_fov"] = m_pSensorCfg->s_pLidCfg->s_dLidFov;
+                        m_jReturnValue["status"] = true;
+                    }
+                    //获取当前的激光器的设置结果，并返回
+                }
+                else if (m_jReceiveValue["input_status"] == "set")
+                {
 
+                    //设置当前激光器的参数，返回一个表
+                }
+                else if (m_jReceiveValue["input_status"] == "add")
+                {
+                    //添加自定义的参数，并需要将该自定义参数保存为一个表
+                }
+
+            }
+            catch (std::exception& e)
+            {
+                LOG_INFO("API GeoSun Test %s", e.what());
+                m_jReturnValue["status"] = false;
+            }
+            catch (...)
+            {
+                LOG_INFO("API GeoSun Test Unknow error ");
+                m_jReturnValue["status"] = false;
+            }
+            return ctx->send(m_jReturnValue.dump(), ctx->type());
+        });
+    
 
     return true;
 }
@@ -242,7 +357,19 @@ void geosun::SocketClient::LidMessageCallback(LidarOptions::Ptr lidcfg)
     m_mSensorMutex.lock();
     m_pSensorCfg->s_pLidCfg = lidcfg;
     m_mSensorMutex.unlock();
-    std::cout << m_pSensorCfg->s_pLidCfg->s_dLidHeight << std::endl;
+}
+
+void geosun::SocketClient::ComputerSize()
+{
+    bfs::space_info si = DiskInfo("F:");
+    m_pSensorCfg->s_pComputerCfg->s_sTotalSize = si.capacity / 1024. / 1024. / 1024.;
+    m_pSensorCfg->s_pComputerCfg->s_sRemainSize = si.available / 1024. / 1024. / 1024.;
+    if (IsDir(m_sPrjPath + "Image\\"))
+        m_pSensorCfg->s_pComputerCfg->s_iPicNum = GetFileNamesFromDir(m_sPrjPath + "Image\\").size();
+    
+    if (IsDir(m_sPrjPath + "Lidar\\"))
+        m_pSensorCfg->s_pComputerCfg->s_iLidNum = GetFileNamesFromDir(m_sPrjPath + "Lidar\\").size();
+
 }
 
 void geosun::SocketClient::CompressMessage()
@@ -261,12 +388,17 @@ void geosun::SocketClient::CompressMessage()
     m_jComputerStatusValue["global_status"] = m_pSensorCfg->s_pComputerCfg->s_sGlobalStatus;
     m_jComputerStatusValue["project_name"] = m_pSensorCfg->s_pComputerCfg->s_sPrjName;
     m_jComputerStatusValue["record_time"] = m_pSensorCfg->s_pComputerCfg->s_iRecordTime;
+    m_jComputerStatusValue["pic_num"] = m_pSensorCfg->s_pComputerCfg->s_iPicNum;
+    m_jComputerStatusValue["lid_num"] = m_pSensorCfg->s_pComputerCfg->s_iLidNum;
+    m_jComputerStatusValue["dat_size"] = m_pSensorCfg->s_pComputerCfg->s_sDatSize;
     m_jSocketReturn["Computer_Status"] = m_jComputerStatusValue;
 
-    //Lidar Status Ԥ���������״�Ĳ����������Ѿ�������Щ����
+    //Lidar Status 预留由于在雷达的参数设置中已经存在这些配置
     m_jLidStatusValue["lidar_fps"] = m_pSensorCfg->s_pLidCfg->s_iLidFps;
     m_jLidStatusValue["lidar_height"] = m_pSensorCfg->s_pLidCfg->s_dLidHeight;
     m_jLidStatusValue["lidar_fov"] = m_pSensorCfg->s_pLidCfg->s_dLidFov;
+    m_jLidStatusValue["lidar_speed"] = m_pSensorCfg->s_pLidCfg->s_dLidSpeed;
+    m_jLidStatusValue["lidar_angscale"] = m_pSensorCfg->s_pLidCfg->s_dAngResolution;
     m_jSocketReturn["Lidar_Status"] = m_jLidStatusValue;
 
     //Gps Status
@@ -275,7 +407,7 @@ void geosun::SocketClient::CompressMessage()
     m_jSocketReturn["Gps_Status"] = m_jGpsStatusValue;
 
     //Camera Status
-    m_jCameraStatusValue["pic_num"] = m_pSensorCfg->s_pCamCfg->s_iPicNum;
+    
     m_jCameraStatusValue["camera_fps"] = m_pSensorCfg->s_pCamCfg->s_dCamFps;
     m_jCameraStatusValue["camera_process"] = m_pSensorCfg->s_pCamCfg->s_sCamProcessStatus;
     m_jSocketReturn["Camera_Status"] = m_jCameraStatusValue;
@@ -284,7 +416,7 @@ void geosun::SocketClient::CompressMessage()
 
 }
 
-string geosun::SocketClient::Base64Encode(const char* bytes, unsigned int length)
+std::string geosun::SocketClient::Base64Encode(const char* bytes, unsigned int length)
 {
     std::string ret;
     int i = 0;
@@ -334,7 +466,7 @@ string geosun::SocketClient::Base64Encode(const char* bytes, unsigned int length
    
 }
 
-string geosun::SocketClient::Base64Decode(const std::string& encode_str)
+std::string geosun::SocketClient::Base64Decode(const std::string& encode_str)
 {
     int in_len = (int)encode_str.size();
     int i = 0;
@@ -377,10 +509,10 @@ string geosun::SocketClient::Base64Decode(const std::string& encode_str)
 
 void geosun::SocketClient::GetImgBase64(Json& jsonInOut, int picNum)
 {
-    std::string imgPath = s_sPrjPath + "Image\\";
+    std::string imgPath = m_sPrjPath + "Image\\";
     if (IsDir(imgPath))
     {
-        std::vector<string>imgFileNames = GetFileNamesFromDir(imgPath);
+        std::vector<std::string>imgFileNames = GetFileNamesFromDir(imgPath);
         if (imgFileNames.empty())
         {
             jsonInOut["imgfile_flag"] = false;
@@ -394,7 +526,7 @@ void geosun::SocketClient::GetImgBase64(Json& jsonInOut, int picNum)
                     break;
                 }
                 std::string imgfile = imgFileNames[i];
-                ifstream in(imgfile, ifstream::in | ios::binary);
+                std::ifstream in(imgfile, std::ifstream::in | std::ios::binary);
                 in.seekg(0, in.end);
                 int length = in.tellg();
                 in.seekg(0, in.beg);
@@ -408,5 +540,136 @@ void geosun::SocketClient::GetImgBase64(Json& jsonInOut, int picNum)
 
         }
     }
+}
+
+void geosun::SocketClient::ProcessClent()
+{
+    CreateSocket();
+    while (1)
+    {
+        std::cout << "1" << std::endl;
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    }
+}
+
+void geosun::SocketClient::CreateSocket()
+{
+#if WIN
+    WORD sockVersion = MAKEWORD(2, 2);
+    WSADATA wsaData;
+    if (WSAStartup(sockVersion, &wsaData) != 0)
+    {
+        return ;
+    }
+#else
+#endif
+    m_pServerSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (m_pServerSocket <= 0)
+    {
+        LOG_INFO("Create Socket Error!");
+        return;
+    }
+    ;
+    m_sAddress.sin_family = AF_INET;
+    m_sAddress.sin_port = htons(8888);
+    m_sAddress.sin_addr.S_un.S_addr = INADDR_ANY;
+    if (bind(m_pServerSocket, (LPSOCKADDR)&m_sAddress, sizeof(m_sAddress)) == SOCKET_ERROR)
+    {
+        LOG_INFO("Bind Error!");
+        return;
+    }
+    if (listen(m_pServerSocket, 5) == SOCKET_ERROR)
+    {
+        LOG_INFO("Listen Error!");
+        return ;
+    }
+    int nAddrlen = sizeof(m_sClientAddress);
+    SOCKET sClient;
+    char revData[255];
+    while (true)
+    {
+        printf("等待连接...\n");
+        sClient = accept(m_pServerSocket, (SOCKADDR*)&m_sClientAddress, &nAddrlen);
+        if (sClient <= 0)
+        {
+            LOG_INFO("Accept Error!");
+            continue;
+        }
+        LOG_INFO("Receive One Connect：%s \r\n", inet_ntoa(m_sClientAddress.sin_addr));
+        int ret = recv(sClient, revData, 255, 0);
+        if (ret > 0)
+        {
+            revData[ret] = 0x00;
+            std::string tmp = revData;
+            std::cout << tmp << std::endl;
+            if (tmp == "Lidar")
+            {
+                std::cout << "aaa" << std::endl;
+                m_pLidarSocket = sClient;
+                m_pProcessLidar = new boost::thread(boost::bind(&SocketClient::ProcessLidar, this));
+            }
+            if (tmp == "Ag310")
+            {
+                m_pAg310Socket = sClient;
+                m_pProcessAg310 = new boost::thread(boost::bind(&SocketClient::ProcessAg310, this));
+            }
+        }
+    }
+}
+
+void geosun::SocketClient::ProcessLidar()
+{
+    int sendData = 1;
+    SendSocketData(m_pLidarSocket, std::to_string(sendData).c_str());
+    while (true)
+    {
+        char buf[64];
+        if (ReceiveSocketData(m_pLidarSocket, buf))
+        {
+            printf("Receive Lidar:%s\n", buf);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        
+    }
+    
+}
+
+void geosun::SocketClient::ProcessAg310()
+{
+    int sendData = 10000;
+    sendData--;
+    SendSocketData(m_pAg310Socket, std::to_string(sendData).c_str());
+    while (1)
+    {
+        char buf[64];
+        if (ReceiveSocketData(m_pAg310Socket, buf))
+        {
+            printf("Receive Ag310:%s\n", buf);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+}
+
+bool geosun::SocketClient::ReceiveSocketData(SOCKET socketIn, char* buf)
+{
+    int retVal = recv(socketIn, buf, 255, 0);
+    if (retVal <= 0)
+    {
+        LOG_INFO("Receive Fail!");
+        return false;
+    }
+    return true;
+}
+
+bool geosun::SocketClient::SendSocketData(SOCKET socketIn, const char* buf)
+{
+    int retVal = send(socketIn, buf, strlen(buf), 0);
+    if (retVal <= 0)
+    {
+        LOG_INFO("SendData Fail!");
+        return false;
+    }
+    return true;
 }
 

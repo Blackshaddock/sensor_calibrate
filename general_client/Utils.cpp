@@ -1,4 +1,4 @@
-#include "Utils.h"
+﻿#include "Utils.h"
 
 namespace geosun {
 	std::vector<std::string> split(const std::string& str_in, char delim)
@@ -99,6 +99,23 @@ bool IsExists(const std::string& path)
 		return true;
 	}
 	return false;
+}
+
+bfs::space_info DiskInfo(const std::string& path)
+{
+	
+	if (IsDir(path))
+	{
+		return boost::filesystem::space(path);
+	}
+}
+
+double FileSize(const std::string& path)
+{
+	if (IsExists(path))
+	{
+		return bfs::file_size(path) / 1024.;
+	}
 }
 
 

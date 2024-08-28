@@ -1,6 +1,6 @@
-#ifndef __GENERAL_CLIENT_H__
+ï»¿#ifndef __GENERAL_CLIENT_H__
 #define __GENERAL_CLIENT_H__
-
+#include "general_client/Log.h"
 #include "WebSocketServer.h"
 #include "EventLoop.h"
 #include "htime.h"
@@ -9,7 +9,12 @@
 #include "OptionCfg.h"
 #include "HttpClient.h"
 #include "Utils.h"
-using namespace std;
+#include "boost/thread.hpp"
+#define WIN 1
+#if WIN
+#include <winsock2.h> 
+#else
+#endif
 using namespace hv;
 namespace geosun {
 
@@ -23,8 +28,8 @@ namespace geosun {
 	struct SocketClientConfig
 	{
 		typedef std::shared_ptr<SocketClientConfig> Ptr;
-		int             s_iPort;                       //¶Ë¿ÚºÅ
-		bool            s_bSingle;                     //ÊÇ·ñÖ§³Ö¶àÈË²Ù×÷
+		int             s_iPort;                       //ç«¯å£å·
+		bool            s_bSingle;                     //æ˜¯å¦æ”¯æŒå¤šäººæ“ä½œ
 		SocketClientConfig() :s_iPort(8090), s_bSingle(true) {}
 	};
 
@@ -32,6 +37,7 @@ namespace geosun {
 	class SocketClient {
 	public:
 		typedef std::shared_ptr<SocketClient> Ptr;
+		
 		SocketClient();
 		SocketClient(SocketClientConfig::Ptr config);
 
@@ -41,37 +47,78 @@ namespace geosun {
 		void GpsMessageCallback(GpsOptions::Ptr gpscfg);
 		void LidMessageCallback(LidarOptions::Ptr lidcfg);
 
-		//»ñÈ¡Éè±¸µÄ´æ´¢¿Õ¼ä  
-		void ComputerTotalSize();
+		//è·å–è®¾å¤‡çš„å­˜å‚¨ç©ºé—´  
+		void ComputerSize();
 
-		//»ñÈ¡Éè±¸µÄ°æ±¾ºÅºÍSNºÅ
+		//è·å–è®¾å¤‡çš„ç‰ˆæœ¬å·å’ŒSNå·
 		void GetDeviceInfo();
 
-		//Êı¾İ×éÖ¯£¬ÓÃÓÚsocketÍ¨Ñ¶
+		//æ•°æ®ç»„ç»‡ï¼Œç”¨äºsocketé€šè®¯
 		void CompressMessage();
 
-		//base64±àÂë
-		string Base64Encode(const char* bytes, unsigned int length);
+		//base64ç¼–ç 
+		std::string Base64Encode(const char* bytes, unsigned int length);
 		
-		//base64½âÂë
-		string Base64Decode(const std::string& encode_str);
+		//base64è§£ç 
+		std::string Base64Decode(const std::string& encode_str);
 		
-		//»ñÈ¡Í¼Æ¬ÅĞ¶ÏÊÇ·ñÕı³£
+		//è·å–å›¾ç‰‡åˆ¤æ–­æ˜¯å¦æ­£å¸¸
 		void GetImgBase64(Json& jsonInOut, int picNum = 3);
+
+		//æœåŠ¡ç«¯çº¿ç¨‹
+		void ProcessClent();
+
+		//åˆ›å»ºæœåŠ¡ç«¯å¥—å­—ï¼Œå¹¶è¿›è¡Œç›‘å¬å’Œæ•°æ®é€šè®¯
+		void CreateSocket();
+
+		//å¤„ç†å’Œé›·è¾¾é€šè®¯çš„è¿›ç¨‹
+		void ProcessLidar();
+
+		//å¤„ç†å’ŒAg310é€šè®¯çš„è¿›ç¨‹
+		void ProcessAg310();
+
+		//æ¥æ”¶socketæ•°æ®
+		bool ReceiveSocketData(SOCKET socketIn, char* buf);
+
+		//å‘é€æ•°æ®
+		bool SendSocketData(SOCKET socketIn, const char* buf);
 		
-		//ÉèÖÃ¹¤³ÌµÄÂ·¾¶,PathĞèÒª´øÓĞ/  ´ú±íÒÑ¾­ÔÚ¸ÃÄ¿Â¼ÏÂ
-		inline void SetPrjPath(const string path)
+		//è®¾ç½®å·¥ç¨‹çš„è·¯å¾„,Pathéœ€è¦å¸¦æœ‰/  ä»£è¡¨å·²ç»åœ¨è¯¥ç›®å½•ä¸‹
+		inline void SetPrjPath(const std::string path)
 		{
-			s_sPrjPath += path;
+			m_sPrjPath += path;
 		}
 		
-		//»ñÈ¡¹¤³ÌÂ·¾¶
-		inline string GetPrjPath() { return s_sPrjPath; }
+		//è·å–å·¥ç¨‹è·¯å¾„
+		inline std::string GetPrjPath() { return m_sPrjPath; }
 
-		//Çå¿Õ½ÓÊÕ/·µ»ØµÄÊı¾İ£¬±ÜÃâÊı¾İ»ìÏı
+		//æ¸…ç©ºæ¥æ”¶/è¿”å›çš„æ•°æ®ï¼Œé¿å…æ•°æ®æ··æ·†
 		inline void clear() {
 			m_jReceiveValue.clear();
 			m_jReturnValue.clear();
+		};
+
+		inline Json GetJsonFromFile(std::string pathIn)
+		{
+			Json ret;
+			if (IsExists(pathIn))
+			{
+				std::ifstream jfile(pathIn);
+
+				jfile >> ret;
+				jfile.close();
+			}
+			
+			return ret;
+		};
+
+		inline void SaveJson2File(Json jsonIn, std::string pathIn)
+		{
+			std::ofstream out(pathIn);
+			out << jsonIn.dump(4) << std::endl;
+			out.flush();
+			out.close();
+
 		};
 
 		static inline bool is_base64(const char c)
@@ -84,27 +131,37 @@ namespace geosun {
 		SocketClientConfig::Ptr               m_pConf;
 
 		
-		std::vector<std::string>              m_vConnectName;          //ÓëÉè±¸Á¬½ÓµÄ¿Í»§¶ËÓÃ»§Ãû
-		websocket_server_t                    m_wServer;               //·şÎñÆ÷
-		HttpService                           m_hRouter;               //ÓÃÓÚHttp·şÎñ
-		WebSocketService                      m_wWs;                   //ÓÃÓÚsocket·şÎñ
-		Json								  m_jSenSorStatusValue;    //ÓÃÓÚsocketÍ¨Ñ¶ ½øĞĞ·µ»ØµÄ²Ù×÷
-		Json                                  m_jComputerStatusValue;  //ÓÃÓÚsocketÍ¨Ñ¶£¬ ·µ»ØÉè±¸Ïà¹ØĞÅÏ¢
-		Json                                  m_jCameraStatusValue;    //ÓÃÓÚsocketÍ¨Ñ¶£¬ ·µ»ØÏà»úÏà¹ØĞÅÏ¢
-		Json                                  m_jGpsStatusValue;       //ÓÃÓÚsocketÍ¨Ñ¶£¬ ·µ»ØgpsÏà¹ØĞÅÏ¢
-		Json                                  m_jLidStatusValue;       //ÓÃÓÚsocketÍ¨Ñ¶£¬ ·µ»ØÀ×´ïÏà¹ØĞÅÏ¢
-		Json                                  m_jSocketReturn;         //ÓÃÓÚsocketĞÅÏ¢·µ»Ø
-		Json                                  m_jReturnValue;          //ÓÃÓÚ·µ»Ø
-		Json                                  m_jReceiveValue;         //ÓÃÓÚ½ÓÊÜ´«Èë²ÎÊı
-		std::mutex                            m_mLidMutex;             //À×´ïÊı¾İµÄËø
-		std::mutex                            m_mCamMutex;             //Ïà»úÊı¾İµÄËø
-		std::mutex                            m_mGpsMutex;             //gpsÊı¾İµÄËø
-		std::mutex                            m_mSensorMutex;          //´«¸ĞÆ÷Êı¾İµÄËø
-		bool                                  m_bStartFlag;            //ÅĞ¶ÏÉè±¸ÊÇ·ñÆô¶¯
+		std::vector<std::string>              m_vConnectName;          //ä¸è®¾å¤‡è¿æ¥çš„å®¢æˆ·ç«¯ç”¨æˆ·å
+		websocket_server_t                    m_wServer;               //æœåŠ¡å™¨
+		HttpService                           m_hRouter;               //ç”¨äºHttpæœåŠ¡
+		WebSocketService                      m_wWs;                   //ç”¨äºsocketæœåŠ¡
+		Json								  m_jSenSorStatusValue;    //ç”¨äºsocketé€šè®¯ è¿›è¡Œè¿”å›çš„æ“ä½œ
+		Json                                  m_jComputerStatusValue;  //ç”¨äºsocketé€šè®¯ï¼Œ è¿”å›è®¾å¤‡ç›¸å…³ä¿¡æ¯
+		Json                                  m_jCameraStatusValue;    //ç”¨äºsocketé€šè®¯ï¼Œ è¿”å›ç›¸æœºç›¸å…³ä¿¡æ¯
+		Json                                  m_jGpsStatusValue;       //ç”¨äºsocketé€šè®¯ï¼Œ è¿”å›gpsç›¸å…³ä¿¡æ¯
+		Json                                  m_jLidStatusValue;       //ç”¨äºsocketé€šè®¯ï¼Œ è¿”å›é›·è¾¾ç›¸å…³ä¿¡æ¯
+		Json                                  m_jSocketReturn;         //ç”¨äºsocketä¿¡æ¯è¿”å›
+		Json                                  m_jReturnValue;          //ç”¨äºè¿”å›
+		Json                                  m_jReceiveValue;         //ç”¨äºæ¥å—ä¼ å…¥å‚æ•°
+		std::mutex                            m_mLidMutex;             //é›·è¾¾æ•°æ®çš„é”
+		std::mutex                            m_mCamMutex;             //ç›¸æœºæ•°æ®çš„é”
+		std::mutex                            m_mGpsMutex;             //gpsæ•°æ®çš„é”
+		std::mutex                            m_mSensorMutex;          //ä¼ æ„Ÿå™¨æ•°æ®çš„é”
+		bool                                  m_bStartFlag;            //åˆ¤æ–­è®¾å¤‡æ˜¯å¦å¯åŠ¨
+		boost::thread*                        m_pProcessLidar;         //ä¸lidarè¿›ç¨‹è¿›è¡Œé€šè®¯
+		boost::thread*                        m_pProcessAg310;         //ä¸ag310è¿›ç¨‹è¿›è¡Œé€šè®¯
+		boost::thread*                        m_pProcessClent;		   //æ­å»ºæœåŠ¡å™¨ç”¨äºä¸lidar/ag310è¿›ç¨‹è¿›è¡Œé€šè®¯
+		SOCKET                                m_pLidarSocket;          //é›·è¾¾è¿›ç¨‹çš„socket ç”¨äºæ¥æ”¶å’Œå‘é€æ•°æ®
+		SOCKET                                m_pAg310Socket;          //Ag310è¿›ç¨‹çš„socket ç”¨äºæ¥æ”¶å’Œå‘é€æ•°æ®
+		SOCKET                                m_pServerSocket;         //æœ¬åœ°çš„æœåŠ¡ç«¯
+		sockaddr_in                           m_sAddress;              //è®¾ç½®ç«¯å£å·ä»¥åŠip
+		sockaddr_in                           m_sClientAddress;        //å®¢æˆ·ç«¯çš„åœ°å€
+
+		
 	private:
-		std::string                           s_sPrjPath;              //¹¤³ÌµÄÂ·¾¶,Ä¬ÈÏÎª/mnt/sd/
-		std::string                           s_sVerPath;              //°æ±¾ºÅµÄÂ·¾¶
-		std::string                           s_sDeviceSN;             //Éè±¸µÄSNºÅ
+		std::string                           m_sPrjPath;              //å·¥ç¨‹çš„è·¯å¾„,é»˜è®¤ä¸º/mnt/sd/
+		std::string                           m_sVerPath;              //ç‰ˆæœ¬å·çš„è·¯å¾„
+		std::string                           m_sDeviceSN;             //è®¾å¤‡çš„SNå·          
 
 
 	};

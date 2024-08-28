@@ -1,4 +1,4 @@
-#ifndef __UTILS_H__
+﻿#ifndef __UTILS_H__
 #define __UTILS_H__
 
 
@@ -37,6 +37,13 @@ bool GetFileNamesFromDir(const std::string& path, std::vector<std::string>& file
 bool valid_file(const std::string& path);
 
 bool IsExists(const std::string& path);
+
+
+//获取磁盘的信息，包括剩余空间，总空间等
+bfs::space_info DiskInfo(const std::string& path);
+
+//获取文件大小,单位Kb
+double FileSize(const std::string& path);
 
 
 }// namespace geosun

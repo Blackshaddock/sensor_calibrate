@@ -1,49 +1,51 @@
-#ifndef __OPTIONCFG_H__
+ï»¿#ifndef __OPTIONCFG_H__
 #define __OPTIONCFG_H__
 #include <iostream>
-
-
 namespace geosun {
 	struct LidarOptions
 	{
 		typedef std::shared_ptr<LidarOptions> Ptr;
-		int                                   s_iLidFps;                       //À×´ïµãÆµ
-		double                                s_dLidHeight;					   //ĞĞ¸ß
-		double                                s_dLidFov;                       //ÊÓÒ°
-		std::string                           s_sLidStatus;					   //¼¤¹âÆ÷×´Ì¬
-		LidarOptions() :s_iLidFps(100), s_dLidHeight(100.), s_dLidFov(360.0) {}
+		int                                   s_iLidFps;                       //é›·è¾¾ç‚¹é¢‘
+		double                                s_dLidHeight;					   //è¡Œé«˜
+		double                                s_dLidFov;                       //è§†é‡
+		double                                s_dLidSpeed;                     //æ‰«æé€Ÿåº¦
+		double                                s_dAngResolution;                //è§’åˆ†è¾¨ç‡
+		std::string                           s_sLidStatus;					   //æ¿€å…‰å™¨çŠ¶æ€
+		LidarOptions() :s_iLidFps(100), s_dLidHeight(100.), s_dLidSpeed(0.0), s_dAngResolution(0.0), s_dLidFov(360.0) {}
 	};
 	
 	struct CameraOptions
 	{
 		typedef std::shared_ptr<CameraOptions> Ptr;
-		int                                    s_iPicNum;                      //ÕÕÆ¬Êı
-		int                                    s_dCamFps;                      //Ïà»úÖ¡ÂÊ Ô¤Áô
-		std::string                            s_sCamProcessStatus;            //Ïà»ú¹¤×÷×´Ì¬  Idle/Recording
-		std::string                            s_sCamStatus;                   //Ïà»ú×´Ì¬
-		CameraOptions() :s_iPicNum(0), s_dCamFps(1), s_sCamProcessStatus("idle"), s_sCamStatus("OFF") {}
+		int                                    s_dCamFps;                      //ç›¸æœºå¸§ç‡ é¢„ç•™
+		std::string                            s_sCamProcessStatus;            //ç›¸æœºå·¥ä½œçŠ¶æ€  Idle/Recording
+		std::string                            s_sCamStatus;                   //ç›¸æœºçŠ¶æ€
+		CameraOptions() :s_dCamFps(1), s_sCamProcessStatus("idle"), s_sCamStatus("OFF") {}
 	};
 	
 	struct GpsOptions
 	{
 		typedef std::shared_ptr<GpsOptions> Ptr;
-		int                                    s_iGpsNum;                      //GpsËÑĞÇ¸öÊı
-		std::string                            s_sGpsSyncStatus;               //GpsÍ¬²½×´Ì¬
-		std::string                            s_sGpsStatus;                   //Gps¹¤×÷×´Ì¬
-		std::string                            s_sImuStatus;                   //imu¹¤×÷×´Ì¬
+		int                                    s_iGpsNum;                      //Gpsæœæ˜Ÿä¸ªæ•°
+		std::string                            s_sGpsSyncStatus;               //GpsåŒæ­¥çŠ¶æ€
+		std::string                            s_sGpsStatus;                   //Gpså·¥ä½œçŠ¶æ€
+		std::string                            s_sImuStatus;                   //imuå·¥ä½œçŠ¶æ€
 		GpsOptions() : s_iGpsNum(0), s_sGpsSyncStatus("single"), s_sGpsStatus("OFF") {}
 	};
 
 	struct ComputerOptions
 	{
 		typedef std::shared_ptr<ComputerOptions> Ptr;
-		int                                      s_iRecordTime;                //²É¼¯Ê±¼ä
-		std::string                              s_sGlobalStatus;              //²É¼¯×´Ì¬     idle/recording/stopping
-		std::string                              s_sVersion;                   //°æ±¾ºÅ
-		std::string                              s_sDeviceSN;                  //Éè±¸SNºÅ
-		std::string                              s_sPrjName;                   //¸Ã×éÊı¾İ¹¤³ÌÃû
-		double                                   s_sTotalSize;                 //×ÜµÄ´æ´¢´óĞ¡  µ¥Î»G
-		double                                   s_sRemainSize;                //Ê£Óà´æ´¢¿Õ¼ä  µ¥Î»G
+		int                                      s_iRecordTime;                //é‡‡é›†æ—¶é—´
+		std::string                              s_sGlobalStatus;              //é‡‡é›†çŠ¶æ€     idle/recording/stopping
+		std::string                              s_sVersion;                   //ç‰ˆæœ¬å·
+		std::string                              s_sDeviceSN;                  //è®¾å¤‡SNå·
+		std::string                              s_sPrjName;                   //è¯¥ç»„æ•°æ®å·¥ç¨‹å
+		std::string                              s_sTotalSize;                 //æ€»çš„å­˜å‚¨å¤§å°  å•ä½G
+		std::string                              s_sRemainSize;                //å‰©ä½™å­˜å‚¨ç©ºé—´  å•ä½G
+		std::string                              s_sDatSize;                   //å•ä½å…†
+		int                                      s_iLidNum;                    //lidæ–‡ä»¶ä¸ªæ•°
+		int                                      s_iPicNum;                    //ç…§ç‰‡æ•°é‡
 		ComputerOptions() :s_iRecordTime(0), s_sGlobalStatus("Ready"), s_sVersion(""), s_sDeviceSN(""), s_sPrjName("") {}
 	};
 
@@ -51,10 +53,10 @@ namespace geosun {
 	struct SensorOptions
 	{
 		typedef std::shared_ptr<SensorOptions> Ptr;
-		LidarOptions::Ptr                      s_pLidCfg;                     //À×´ïĞÅÏ¢
-		CameraOptions::Ptr                     s_pCamCfg;                     //Ïà»úĞÅÏ¢
-		GpsOptions::Ptr                        s_pGpsCfg;					  //GpsĞÅÏ¢
-		ComputerOptions::Ptr                   s_pComputerCfg;                //Éè±¸ĞÅÏ¢×´Ì¬
+		LidarOptions::Ptr                      s_pLidCfg;                     //é›·è¾¾ä¿¡æ¯
+		CameraOptions::Ptr                     s_pCamCfg;                     //ç›¸æœºä¿¡æ¯
+		GpsOptions::Ptr                        s_pGpsCfg;					  //Gpsä¿¡æ¯
+		ComputerOptions::Ptr                   s_pComputerCfg;                //è®¾å¤‡ä¿¡æ¯çŠ¶æ€
 		SensorOptions()
 		{
 			s_pLidCfg = std::make_shared<LidarOptions>();                     

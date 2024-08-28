@@ -1,16 +1,8 @@
-/**
- * @file Log.cpp
- * @author aodp (aodp@qq.com)
- * @brief 
- * @version 0.1
- * @date 2024-08-09
- * 
- * @copyright Copyright (c) 2024
- * 
- */
-#include "Log.h"
+﻿#include "Log.h"
 #include <sys/stat.h>
 #include <unistd.h>
+
+using namespace geosun;
 
 Log& Log::getInstance() {
     static Log instance;
@@ -19,19 +11,19 @@ Log& Log::getInstance() {
 
 Log::Log()
     : currentLogLevel(INFO),
-      printToTerminal(false),
-      logFilePath("debug.log"),
-      baseLogFilePath("debug"),
-      maxLogFileSize(10 * 1024 * 1024), // 10MB
-      maxBackupFiles(5),
-      queueMaxSize(1000),
-      lostLogCount(0),
-      exitFlag(false),
-      performanceMonitoring(false),
-      totalLogTime(0),
-      maxLogTime(0),
-      logCount(0),
-      logThread(&Log::processLogQueue, this) {}
+    printToTerminal(false),
+    logFilePath("debug.log"),
+    baseLogFilePath("debug"),
+    maxLogFileSize(10 * 1024 * 1024), // 10MB
+    maxBackupFiles(5),
+    queueMaxSize(1000),
+    lostLogCount(0),
+    exitFlag(false),
+    performanceMonitoring(false),
+    totalLogTime(0),
+    maxLogTime(0),
+    logCount(0),
+    logThread(&Log::processLogQueue, this) {}
 
 Log::~Log() {
     {
@@ -95,7 +87,8 @@ void Log::logMessage(LogLevel level, const char* file, const char* function, int
         if (logQueue.size() < queueMaxSize) {
             logQueue.push(oss.str());
             queueCV.notify_one();
-        } else {
+        }
+        else {
             lostLogCount++;
         }
     }
@@ -122,7 +115,8 @@ void Log::logHexData(LogLevel level, const void* data, size_t length, const char
         if (logQueue.size() < queueMaxSize) {
             logQueue.push(oss.str());
             queueCV.notify_one();
-        } else {
+        }
+        else {
             lostLogCount++;
         }
     }
@@ -141,12 +135,12 @@ std::string Log::getBackupLogFileName(int index) {
 }
 
 void Log::rotateLogFiles() {
-    // 删除超过保留数量的最老文件
+    
     if (std::ifstream(getBackupLogFileName(maxBackupFiles)).good()) {
         std::remove(getBackupLogFileName(maxBackupFiles).c_str());
     }
 
-    // 依次重命名备份文件
+    
     for (int i = maxBackupFiles - 1; i > 0; --i) {
         std::string oldFile = getBackupLogFileName(i);
         std::string newFile = getBackupLogFileName(i + 1);
@@ -155,10 +149,10 @@ void Log::rotateLogFiles() {
         }
     }
 
-    // 将当前日志文件重命名为第一个备份文件
+    
     std::rename(logFilePath.c_str(), getBackupLogFileName(1).c_str());
 
-    // 创建新日志文件，继续使用固定名称
+    
     std::ofstream newLogFile(logFilePath);
     if (newLogFile.is_open()) {
         newLogFile.close();
@@ -186,7 +180,7 @@ void Log::processLogQueue() {
                 rotateLogFiles();
             }
 
-            std::ofstream logFile(logFilePath, std::ios_base::app);
+            std::ofstream logFile(logFilePath,  std::ios_base::app);
             if (logFile.is_open()) {
                 logFile << logEntry << std::endl;
             }
@@ -221,17 +215,17 @@ std::string Log::getTimestamp() {
 
 std::string Log::getLevelString(LogLevel level) {
     switch (level) {
-        case DEBUG: return "DEBUG";
-        case INFO: return "INFO";
-        case WARNING: return "WARNING";
-        case ERROR: return "ERROR";
-        default: return "UNKNOWN";
+    case DEBUG: return "DEBUG";
+    case INFO: return "INFO";
+    case WARNING: return "WARNING";
+    case ERROR: return "ERROR";
+    default: return "UNKNOWN";
     }
 }
 
 std::string Log::getProcessName() {
     char path[256];
-    char processName[256] = {0};
+    char processName[256] = { 0 };
     sprintf(path, "/proc/%d/cmdline", getpid());
     FILE* cmdline = fopen(path, "r");
     if (cmdline) {

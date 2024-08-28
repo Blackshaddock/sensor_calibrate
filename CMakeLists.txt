@@ -33,7 +33,7 @@ file(GLOB ODOMETRY_SRC "odometry/*.h"  "odometry/*.cpp")
 file(GLOB KDTREE_SRC "kdtree/*.h" "kdtree/*.cpp")
 file(GLOB R3LIVE_SRC "r3live/*.h" "r3live/*.cpp" )
 file(GLOB ColorPoint_SRC "color_point/*.h" "color_point/*.cpp")
-file(GLOB General_Client "general_client/*.h" "general_client/*.cpp")
+file(GLOB General_Client "general_client/*.h" "general_client/*.cpp" )
 
 source_group(internal FILES ${INTERNAL_SRC})
 source_group(example FILES ${EXAMPLE_SRC})
