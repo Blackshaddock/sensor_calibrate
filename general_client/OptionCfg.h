@@ -7,20 +7,22 @@ namespace geosun {
 		typedef std::shared_ptr<LidarOptions> Ptr;
 		int                                   s_iLidFps;                       //雷达点频
 		double                                s_dLidHeight;					   //行高
-		double                                s_dLidFov;                       //视野
+		double                                s_dLidFovMin;                       //视野
+		double                                s_dLidFovMax;                    //视野
 		double                                s_dLidSpeed;                     //扫描速度
 		double                                s_dAngResolution;                //角分辨率
 		std::string                           s_sLidStatus;					   //激光器状态
-		LidarOptions() :s_iLidFps(100), s_dLidHeight(100.), s_dLidSpeed(0.0), s_dAngResolution(0.0), s_dLidFov(360.0) {}
+		LidarOptions() :s_iLidFps(100), s_dLidHeight(100.), s_dLidSpeed(0.0), s_dAngResolution(0.0), s_dLidFovMin(0.0), s_dLidFovMax(0.0), s_sLidStatus("OFF") {}
 	};
 	
 	struct CameraOptions
 	{
 		typedef std::shared_ptr<CameraOptions> Ptr;
+		
 		int                                    s_dCamFps;                      //相机帧率 预留
 		std::string                            s_sCamProcessStatus;            //相机工作状态  Idle/Recording
 		std::string                            s_sCamStatus;                   //相机状态
-		CameraOptions() :s_dCamFps(1), s_sCamProcessStatus("idle"), s_sCamStatus("OFF") {}
+		CameraOptions() : s_dCamFps(1), s_sCamProcessStatus("idle"), s_sCamStatus("OFF") {}
 	};
 	
 	struct GpsOptions
@@ -30,7 +32,7 @@ namespace geosun {
 		std::string                            s_sGpsSyncStatus;               //Gps同步状态
 		std::string                            s_sGpsStatus;                   //Gps工作状态
 		std::string                            s_sImuStatus;                   //imu工作状态
-		GpsOptions() : s_iGpsNum(0), s_sGpsSyncStatus("single"), s_sGpsStatus("OFF") {}
+		GpsOptions() : s_iGpsNum(0), s_sGpsSyncStatus("single"), s_sGpsStatus("OFF"), s_sImuStatus("OFF") {}
 	};
 
 	struct ComputerOptions
@@ -41,12 +43,14 @@ namespace geosun {
 		std::string                              s_sVersion;                   //版本号
 		std::string                              s_sDeviceSN;                  //设备SN号
 		std::string                              s_sPrjName;                   //该组数据工程名
-		std::string                              s_sTotalSize;                 //总的存储大小  单位G
-		std::string                              s_sRemainSize;                //剩余存储空间  单位G
-		std::string                              s_sDatSize;                   //单位兆
+		double                                   s_sTotalSize;                 //总的存储大小  单位G
+		double                                   s_sRemainSize;                //剩余存储空间  单位G
+		double                                   s_sDatSize;                   //单位兆
 		int                                      s_iLidNum;                    //lid文件个数
-		int                                      s_iPicNum;                    //照片数量
-		ComputerOptions() :s_iRecordTime(0), s_sGlobalStatus("Ready"), s_sVersion(""), s_sDeviceSN(""), s_sPrjName("") {}
+		int                                      s_iPicNum;                       //相机张数
+		std::string                              s_sSyncStatus;                //同步状态
+		ComputerOptions() :s_iRecordTime(0), s_sGlobalStatus("Ready"), s_sVersion(""), s_sDeviceSN(""), s_sPrjName(""), s_iPicNum(0), s_iLidNum(0), s_sDatSize(0), s_sTotalSize(0), s_sRemainSize(0),
+		s_sSyncStatus("OFF") {}
 	};
 
 

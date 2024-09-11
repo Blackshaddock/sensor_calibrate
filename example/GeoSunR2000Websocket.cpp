@@ -25,14 +25,6 @@ void Start(boost::function<void(LidarOptions::Ptr)> lidar_callback)
 
 int main(int argc, char** argv) {
 
-    Log& log = Log::getInstance();
-    log.setLogLevel(INFO);
-    log.setPrintToTerminal(true);
-    log.setMaxLogFileSize(5 * 1024 * 1024); // 5KB for testing
-    log.setMaxBackupFiles(5);
-    log.setQueueMaxSize(100000);
-    log.setLogFilePath("D:\\code\\01.sensor_calibrate\\build\\app_debug.log");
-    log.enablePerformanceMonitoring(true);
     SocketClient::Ptr pSocketClient = std::make_shared<SocketClient>();
     pSocketClient->Run();
     Start(boost::bind(&SocketClient::LidMessageCallback, pSocketClient, _1));

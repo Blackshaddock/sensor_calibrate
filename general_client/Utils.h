@@ -46,5 +46,24 @@ bfs::space_info DiskInfo(const std::string& path);
 double FileSize(const std::string& path);
 
 
+//十六进制转string
+
+inline std::string binaryToHex(const std::vector<uint8_t>& binary) {
+    std::ostringstream ss;
+    for (uint8_t byte : binary) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    }
+    return ss.str();
+}
+
+inline std::string binaryToHex(const uint8_t& binary) {
+    std::ostringstream ss;
+    
+    ss << std::hex << std::setw(2) << std::setfill('0') << (int)binary;
+    
+    return ss.str();
+}
+
+
 }// namespace geosun
 #endif // __UTILS_H__

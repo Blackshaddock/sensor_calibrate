@@ -10,6 +10,7 @@
 #include "HttpClient.h"
 #include "Utils.h"
 #include "boost/thread.hpp"
+#include <ctime>
 #define WIN 1
 #if WIN
 #include <winsock2.h> 
@@ -17,7 +18,6 @@
 #endif
 using namespace hv;
 namespace geosun {
-
 
 	static const std::string base64_chars =
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -30,7 +30,14 @@ namespace geosun {
 		typedef std::shared_ptr<SocketClientConfig> Ptr;
 		int             s_iPort;                       //端口号
 		bool            s_bSingle;                     //是否支持多人操作
-		SocketClientConfig() :s_iPort(8090), s_bSingle(true) {}
+		std::string     s_sDataHeader;                 //数据头
+		std::string     s_sDataEnd;                    //数据尾部
+		SocketClientConfig() :s_iPort(8090), s_bSingle(true) {
+			std::vector<uint8_t> tmp = { 0xFF, 0xFF, 0xFF };
+			s_sDataHeader =  binaryToHex(tmp);
+			tmp = { 0xFF };
+			s_sDataEnd = binaryToHex(tmp);
+		}
 	};
 
 
@@ -74,11 +81,16 @@ namespace geosun {
 		//处理和雷达通讯的进程
 		void ProcessLidar();
 
-		//处理和Ag310通讯的进程
-		void ProcessAg310();
+		//处理和Pos通讯的进程
+		void ProcessPos();
 
 		//接收socket数据
 		bool ReceiveSocketData(SOCKET socketIn, char* buf);
+
+		//将接收数据进行过滤typename 1: 雷达， 2: Pos, 暂时不需要分别做处理
+		void FilterReceiveData(std::string& strInOut, int type = 0);
+
+		std::string FilterReceiveData(int typename);
 
 		//发送数据
 		bool SendSocketData(SOCKET socketIn, const char* buf);
@@ -97,6 +109,16 @@ namespace geosun {
 			m_jReceiveValue.clear();
 			m_jReturnValue.clear();
 		};
+
+		inline void AddDataHeader(std::string& strIn)
+		{
+			strIn = m_pConf->s_sDataHeader + strIn + m_pConf->s_sDataEnd;
+		}
+
+		inline std::string AddDataHeader(std::string strIn)
+		{
+			return strIn = m_pConf->s_sDataHeader + strIn + m_pConf->s_sDataEnd;
+		}
 
 		inline Json GetJsonFromFile(std::string pathIn)
 		{
@@ -121,12 +143,32 @@ namespace geosun {
 
 		};
 
+
+		inline void WaitForReturn() {
+			int count = 0;
+			while (!m_bReturnFlag)
+			{
+				count++;
+				if (count > 4000)
+				{
+					m_jReturnValue["status"] = false;
+					return;
+				}
+				std::this_thread::sleep_for(std::chrono::microseconds(5));
+			}
+			m_bReturnFlag = false;
+			m_jReturnValue["status"] = true;
+		}
+
+
 		static inline bool is_base64(const char c)
 		{
 			return (isalnum(c) || (c == '+') || (c == '/'));
 		}
 
 		
+
+
 		SensorOptions::Ptr                    m_pSensorCfg;
 		SocketClientConfig::Ptr               m_pConf;
 
@@ -143,23 +185,28 @@ namespace geosun {
 		Json                                  m_jSocketReturn;         //用于socket信息返回
 		Json                                  m_jReturnValue;          //用于返回
 		Json                                  m_jReceiveValue;         //用于接受传入参数
+		Json                                  m_jSensorUseValue;       //设备当前使用的参数
 		std::mutex                            m_mLidMutex;             //雷达数据的锁
 		std::mutex                            m_mCamMutex;             //相机数据的锁
 		std::mutex                            m_mGpsMutex;             //gps数据的锁
 		std::mutex                            m_mSensorMutex;          //传感器数据的锁
 		bool                                  m_bStartFlag;            //判断设备是否启动
 		boost::thread*                        m_pProcessLidar;         //与lidar进程进行通讯
-		boost::thread*                        m_pProcessAg310;         //与ag310进程进行通讯
-		boost::thread*                        m_pProcessClent;		   //搭建服务器用于与lidar/ag310进程进行通讯
+		boost::thread*                        m_pProcessPos;         //与Pos进程进行通讯
+		boost::thread*                        m_pProcessClent;		   //搭建服务器用于与lidar/Pos进程进行通讯
 		SOCKET                                m_pLidarSocket;          //雷达进程的socket 用于接收和发送数据
-		SOCKET                                m_pAg310Socket;          //Ag310进程的socket 用于接收和发送数据
+		SOCKET                                m_pPosSocket;          //Pos进程的socket 用于接收和发送数据
 		SOCKET                                m_pServerSocket;         //本地的服务端
 		sockaddr_in                           m_sAddress;              //设置端口号以及ip
 		sockaddr_in                           m_sClientAddress;        //客户端的地址
+		bool                                  m_bReturnFlag;           //客户端给服务端的命令反馈，根据该状态对app进行反馈操作
+		
+		
 
 		
 	private:
-		std::string                           m_sPrjPath;              //工程的路径,默认为/mnt/sd/
+		std::string                           m_sRootPath;              //根目录路径,默认为/mnt/sd/
+		std::string                           m_sPrjPath;               //工程路径
 		std::string                           m_sVerPath;              //版本号的路径
 		std::string                           m_sDeviceSN;             //设备的SN号          
 
