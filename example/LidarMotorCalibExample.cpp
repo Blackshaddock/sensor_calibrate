@@ -4,8 +4,24 @@
 #include "internal/CeresFactors.h"
 #include <deque>
 
+void GetRLidar2IMU()
+{
+	Eigen::Vector3d alpha(0.3430, 0.0257, -0.1612);
+	double cx = cos(alpha[0] * DEG2RAD), sx = sin(alpha[0] * DEG2RAD);
+	double cy = cos(alpha[1] * DEG2RAD), sy = sin(alpha[1] * DEG2RAD);
+	double cz = cos(alpha[2] * DEG2RAD), sz = sin(alpha[2] * DEG2RAD);
+	Eigen::Matrix3d a;
+	a << cy * cz, cy* sz, -sy,
+		-cx * sz + sx * sy * cz, cx* cz + sx * sy * sz, sx* cy,
+		sx* sz + cx * sy * cz, -sx * cz + cx * sy * sz, cx* cy;
+	Eigen::Matrix3d b;
+	b << 1, 0, 0, 0, 0.7660444, 0.6427876, 0, -0.6427876, 0.7660444;
+	a = a * b;
+	std::cout << a << std::endl;
+}
 int main(int argc, char** argv) {
 	
+	GetRLidar2IMU();
 	// 指定config文件夹的yaml文件
 	if (argc != 3) {
 		std::cout << "Please set config file path first." << std::endl;
