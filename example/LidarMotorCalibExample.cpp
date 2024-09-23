@@ -12,7 +12,10 @@ int main(int argc, char** argv) {
 		system("pause");
 		return 0;
 	}
-	std::cout << argv[2] << " " <<   std::endl;
+	/*Eigen::Matrix3d tmp;
+	tmp = GetRFromZYX(0.8054, 0.0105, -0.2385) * GetRFromZYX(40, 0, 0);
+	std::cout << tmp << std::endl;
+	std::cout << argv[2] << " " <<   std::endl;*/
 	std::string runtype = argv[2];
 	if (runtype == "slam")
 	{
