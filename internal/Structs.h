@@ -11,6 +11,9 @@
 // namespace of sensor calibration
 namespace sc {
 
+
+
+
 struct EIGEN_ALIGN16 PointXYZIRT {
 	PCL_ADD_POINT4D;
 	PCL_ADD_NORMAL4D;
@@ -30,6 +33,8 @@ struct EIGEN_ALIGN16 PointXYZIRT {
 typedef PointXYZIRT					BasePoint;
 typedef pcl::PointCloud<BasePoint>	BaseCloud;
 typedef BaseCloud::Ptr				BaseCloudPtr;
+
+
 
 struct PointXYZIRGB {
 	PCL_ADD_POINT4D;

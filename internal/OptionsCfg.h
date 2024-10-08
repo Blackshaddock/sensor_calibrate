@@ -88,8 +88,10 @@ public:
 	Eigen::Matrix3d          s_eCamIntrisic2;              //右相机的内参
 	Eigen::Vector4d          s_eCamDisCoffes2;             //右相机的畸变参数
 	int                      s_iCamNum;
+	double                   s_dNdtResolution;             //Ndt的分辨率
+	double                   s_dPlaneThreshold;
 
-
+	slamColorPointOptionsCfg() :s_dNdtResolution(0.5), s_dPlaneThreshold(0.4){}
 };
 
 

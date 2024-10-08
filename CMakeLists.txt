@@ -48,7 +48,7 @@ source_group(r3live FILES ${R3LIVE_SRC})
 source_group(colorpoint FILES ${ColorPoint_SRC})
 
 # ADD_SUBDIRECTORY(PlaneDetection)
-
+message("abc====" ${PCLOMP_LIBRARIES})
 add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC} ${SCAN_SRC} ${CONFIG_FILE} ${NDTOMP_SRC} ${KDTREE_SRC} ${R3LIVE_SRC} ${ColorPoint_SRC})
 set_property(TARGET lidar_motor_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 target_link_libraries(lidar_motor_calib  ${3RDPARTY_LIBRARIES} )

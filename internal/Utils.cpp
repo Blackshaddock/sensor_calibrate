@@ -57,6 +57,8 @@ std::vector<std::string> GetFileNamesFromDir(const std::string& path)
 		filenames.emplace_back(path.path().string());
 
 	}
+	auto start = filenames.begin(), end = filenames.end();
+	std::sort(start, end);
 	return filenames;
 }
 

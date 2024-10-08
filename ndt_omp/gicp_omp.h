@@ -1,3 +1,43 @@
+/*
+ * Software License Agreement (BSD License)
+ *
+ *  Point Cloud Library (PCL) - www.pointclouds.org
+ *  Copyright (c) 2010, Willow Garage, Inc.
+ *  Copyright (c) 2012-, Open Perception, Inc.
+ *
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the copyright holder(s) nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
+ *
+ */
+
 #ifndef PCL_GICP_OMP_H_
 #define PCL_GICP_OMP_H_
 
@@ -9,7 +49,7 @@ namespace pclomp
   /** \brief GeneralizedIterativeClosestPoint is an ICP variant that implements the
     * generalized iterative closest point algorithm as described by Alex Segal et al. in
     * http://www.robots.ox.ac.uk/~avsegal/resources/papers/Generalized_ICP.pdf
-    * The approach is based on using anisotropic cost functions to optimize the alignment
+    * The approach is based on using anistropic cost functions to optimize the alignment
     * after closest point assignments have been made.
     * The original code uses GSL and ANN while in ours we use an eigen mapped BFGS and
     * FLANN.
@@ -50,24 +90,15 @@ namespace pclomp
       using PointIndicesPtr = pcl::PointIndices::Ptr;
       using PointIndicesConstPtr = pcl::PointIndices::ConstPtr;
 
-      using InputKdTree = typename pcl::Registration<PointSource, PointTarget>::KdTree;
-      using InputKdTreePtr = typename pcl::Registration<PointSource, PointTarget>::KdTreePtr;
-
       using MatricesVector = std::vector<Eigen::Matrix3d, Eigen::aligned_allocator<Eigen::Matrix3d> >;
-
-#if PCL_VERSION >= PCL_VERSION_CALC(1, 10, 0)
-      using MatricesVectorPtr = pcl::shared_ptr<MatricesVector>;
-      using MatricesVectorConstPtr = pcl::shared_ptr<const MatricesVector>;
-
-      using Ptr = pcl::shared_ptr<GeneralizedIterativeClosestPoint<PointSource, PointTarget> >;
-      using ConstPtr = pcl::shared_ptr<const GeneralizedIterativeClosestPoint<PointSource, PointTarget> >;
-#else
       using MatricesVectorPtr = boost::shared_ptr<MatricesVector>;
       using MatricesVectorConstPtr = boost::shared_ptr<const MatricesVector>;
 
+      using InputKdTree = typename pcl::Registration<PointSource, PointTarget>::KdTree;
+      using InputKdTreePtr = typename pcl::Registration<PointSource, PointTarget>::KdTreePtr;
+
       using Ptr = boost::shared_ptr<GeneralizedIterativeClosestPoint<PointSource, PointTarget> >;
       using ConstPtr = boost::shared_ptr<const GeneralizedIterativeClosestPoint<PointSource, PointTarget> >;
-#endif
 
 
       using Vector6d = Eigen::Matrix<double, 6, 1>;
@@ -171,7 +202,7 @@ namespace pclomp
       }
 
       /** \brief Computes rotation matrix derivative.
-        * rotation matrix is obtained from rotation angles x[3], x[4] and x[5]
+        * rotation matrix is obtainded from rotation angles x[3], x[4] and x[5]
         * \return d/d_rx, d/d_ry and d/d_rz respectively in g[3], g[4] and g[5]
         * param x array representing 3D transformation
         * param R rotation matrix

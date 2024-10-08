@@ -11,8 +11,14 @@ string ColoredPoint::m_sLogPath;
 
 ColoredPoint::ColoredPoint()
 {
+	m_pConf = std::make_shared<slamColorPointOptionsCfg>();
+	m_pPoints.reset(new BaseCloud);
+	m_surMap.reset(new colorPointCloudT);
+	m_pNdtOmp = pclomp::NormalDistributionsTransform<pcl::PointXYZI, pcl::PointXYZI>::Ptr(new pclomp::NormalDistributionsTransform<pcl::PointXYZI, pcl::PointXYZI>());
+	//m_pNdtOmp.reset(new pclomp::NormalDistributionsTransform<BasePoint, BasePoint>);
+	NdtInit(m_pConf->s_dNdtResolution);
+	initColorList();
 	
-		m_pPoints.reset(new BaseCloud);
 	
 }
 
@@ -24,12 +30,133 @@ void ColoredPoint::LoadPoints()
 		system("pause");
 		return;
 	}
-	pcl::io::loadPLYFile(m_pConf->s_sLidarFilePath, *m_pPoints);
-	m_sLogPath = GetRootDirectory(m_pConf->s_sLidarFilePath) + "/Process/";
-	if (!CreateDir(m_sLogPath)) {
-		m_sLogPath = GetRootDirectory(m_pConf->s_sLidarFilePath);
+	pcl::PointCloud<pcl::PointXYZI> tmp;
+	pcl::io::loadPLYFile(m_pConf->s_sLidarFilePath, tmp);
+	
+	//pcl::copyPointCloud(*m_pPoints, tmp);
+	//m_pPoints->clear();
+	m_pNdtOmp->setInputTarget(tmp.makeShared());
+	Eigen::Vector3i counter(0, 0, 0);
+	/*auto a = m_pNdtOmp->getTargetCells();
+	a.getLeaves();*/
+	std::cout << m_pNdtOmp->getTargetCells().getLeaves().size() << std::endl;
+
+	for (const auto &v : m_pNdtOmp->getTargetCells().getLeaves())
+	{
+		//std::cout << v.first << " " << v.second.nr_points <<" " << tmp.size() <<   std::endl;
+		auto leaf = v.second;
+		if (leaf.nr_points < 10)
+		{
+			continue;
+		}
+		//论文中判断面 和 柱的公式
+		int plane_type = checkPlaneType(leaf.getEvals(), leaf.getEvecs(), m_pConf->s_dPlaneThreshold);
+		if (plane_type < 0)
+			continue;
+		Eigen::Vector4d surfCoeff;
+		BaseCloudPtr cloud_inliers(new BaseCloud());
+		
+		if (!fitPlane(leaf.pointList_.makeShared(), surfCoeff, cloud_inliers))
+			continue;
+
+		counter(plane_type) += 1;
+		SurfelPlane surfplane;
+		pcl::copyPointCloud(leaf.pointList_, surfplane.cloud);
+		//surfplane.cloud = leaf.pointList_;
+		surfplane.cloud_inlier = *cloud_inliers;
+		surfplane.p4 = surfCoeff;
+		surfplane.Pi = -surfCoeff(3) * surfCoeff.head<3>();
+		BasePoint min, max;
+		pcl::getMinMax3D(surfplane.cloud, min, max);
+		surfplane.boxMin = Eigen::Vector3d(min.x, min.y, min.z);
+		surfplane.boxMax = Eigen::Vector3d(max.x, max.y, max.z);
+
+		m_surPlanes.push_back(surfplane);
 	}
+	m_surMap->clear();
+	{
+		int idx = 0;
+		for (const auto& v : m_surPlanes) {
+			colorPointCloudT cloud_rgb;
+			pcl::copyPointCloud(v.cloud_inlier, cloud_rgb);
+
+			size_t colorType = (idx++) % m_colorList.size();
+			for (auto& p : cloud_rgb) {
+				p.rgba = m_colorList[colorType];
+			}
+			*m_surMap += cloud_rgb;
+		}
+	}
+
+	PlyIo::SavePLYFileBinary(m_sLogPath + "sourceColor.ply", *m_surMap);
+
+	
+
 }
+
+
+int ColoredPoint::checkPlaneType(const Eigen::Vector3d& eigen_value,
+	const Eigen::Matrix3d& eigen_vector,
+	const double& p_lambda) {
+	Eigen::Vector3d sorted_vec;
+	Eigen::Vector3i ind;
+	sort_vec(eigen_value, sorted_vec, ind);
+
+	double p = 2 * (sorted_vec[1] - sorted_vec[2]) /
+		(sorted_vec[2] + sorted_vec[1] + sorted_vec[0]);
+
+	if (p < p_lambda) {
+		return -1;
+	}
+
+	int min_idx = ind[2];
+	Eigen::Vector3d plane_normal = eigen_vector.block<3, 1>(0, min_idx);
+	plane_normal = plane_normal.array().abs();
+
+	sort_vec(plane_normal, sorted_vec, ind);
+	return ind[2];
+}
+
+
+bool ColoredPoint::fitPlane(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud,
+	Eigen::Vector4d& coeffs,
+	BaseCloudPtr cloud_inliers) {
+	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+	pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+	pcl::SACSegmentation<pcl::PointXYZI> seg;    /// Create the segmentation object
+	// Optional
+	seg.setOptimizeCoefficients(true);
+	// Mandatory
+	seg.setModelType(pcl::SACMODEL_PLANE);
+	seg.setMethodType(pcl::SAC_RANSAC);
+	seg.setDistanceThreshold(0.05);
+
+	seg.setInputCloud(cloud);
+	seg.segment(*inliers, *coefficients);
+
+	if (inliers->indices.size() < 20) {
+		return false;
+	}
+
+	for (int i = 0; i < 4; i++) {
+		coeffs(i) = coefficients->values[i];
+	}
+
+	pcl::copyPointCloud<pcl::PointXYZI>(*cloud, *inliers, *cloud_inliers);
+	return true;
+}
+
+void ColoredPoint::initColorList()
+{
+	m_colorList.set_capacity(6);
+	m_colorList.push_back(0xFF0000);
+	m_colorList.push_back(0xFF00FF);
+	m_colorList.push_back(0x436EEE);
+	m_colorList.push_back(0xBF3EFF);
+	m_colorList.push_back(0xB4EEB4);
+	m_colorList.push_back(0xFFE7BA);
+}
+
 
 void ColoredPoint::LoadImages()
 {
@@ -206,7 +333,10 @@ void ColoredPoint::LoadConf(const std::string str_in)
 	
 	dp.clear();
 	GetData(ColorNode["camNum"], m_pConf->s_iCamNum);
-
+	m_sLogPath = GetRootDirectory(m_pConf->s_sLidarFilePath) + "/Process/";
+	if (!CreateDir(m_sLogPath)) {
+		m_sLogPath = GetRootDirectory(m_pConf->s_sLidarFilePath);
+	}
 }
 
 void ColoredPoint::Run()
@@ -436,6 +566,16 @@ void ColoredPoint::VtkDisplay()
 		view->spinOnce(100);
 		// 在这里可以添加处理用户选择点的代码
 	}
+}
+
+void ColoredPoint::NdtInit(double ndtResolution)
+{
+	m_pNdtOmp->setResolution(ndtResolution);
+	m_pNdtOmp->setNumThreads(4);
+	m_pNdtOmp->setNeighborhoodSearchMethod(pclomp::DIRECT7);
+	m_pNdtOmp->setTransformationEpsilon(1e-3);
+	m_pNdtOmp->setStepSize(0.01);
+	m_pNdtOmp->setMaximumIterations(50);
 }
 
 
