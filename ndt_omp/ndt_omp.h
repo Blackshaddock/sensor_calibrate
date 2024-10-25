@@ -1,9 +1,50 @@
+/*
+ * Software License Agreement (BSD License)
+ *
+ *  Point Cloud Library (PCL) - www.pointclouds.org
+ *  Copyright (c) 2010-2012, Willow Garage, Inc.
+ *  Copyright (c) 2012-, Open Perception, Inc.
+ *
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the copyright holder(s) nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
+ *
+ */
+
 #ifndef PCL_REGISTRATION_NDT_OMP_H_
 #define PCL_REGISTRATION_NDT_OMP_H_
 
 #include <pcl/registration/registration.h>
 #include <pcl/search/impl/search.hpp>
 #include "voxel_grid_covariance_omp.h"
+
 #include <unsupported/Eigen/NonLinearOptimization>
 
 namespace pclomp
@@ -18,7 +59,7 @@ namespace pclomp
 	/** \brief A 3D Normal Distribution Transform registration implementation for point cloud data.
 	  * \note For more information please see
 	  * <b>Magnusson, M. (2009). The Three-Dimensional Normal-Distributions Transform —
-	  * an Efficient Representation for Registration, Surface Analysis, and Loop Detection.
+	  * an Efﬁcient Representation for Registration, Surface Analysis, and Loop Detection.
 	  * PhD thesis, Orebro University. Orebro Studies in Technology 36.</b>,
 	  * <b>More, J., and Thuente, D. (1994). Line Search Algorithm with Guaranteed Sufficient Decrease
 	  * In ACM Transactions on Mathematical Software.</b> and
@@ -54,13 +95,8 @@ namespace pclomp
 
 	public:
 
-#if PCL_VERSION >= PCL_VERSION_CALC(1, 10, 0)
-		typedef pcl::shared_ptr< NormalDistributionsTransform<PointSource, PointTarget> > Ptr;
-		typedef pcl::shared_ptr< const NormalDistributionsTransform<PointSource, PointTarget> > ConstPtr;
-#else
 		typedef boost::shared_ptr< NormalDistributionsTransform<PointSource, PointTarget> > Ptr;
 		typedef boost::shared_ptr< const NormalDistributionsTransform<PointSource, PointTarget> > ConstPtr;
-#endif
 
 
 		/** \brief Constructor.
@@ -91,7 +127,7 @@ namespace pclomp
 		inline void
 			setResolution(float resolution)
 		{
-			// Prevents unnecessary voxel initiations
+			// Prevents unnessary voxel initiations
 			if (resolution_ != resolution)
 			{
 				resolution_ = resolution;
@@ -99,15 +135,6 @@ namespace pclomp
 					init();
 			}
 		}
-
-		/**/
-		inline const TargetGrid&
-			getTargetCells() const
-		{
-			return target_cells_;
-		}
-
-
 
 		/** \brief Get voxel grid resolution.
 		  * \return side length of voxels
@@ -140,7 +167,7 @@ namespace pclomp
 		  * \return outlier ratio
 		  */
 		inline double
-			getOutlierRatio() const
+			getOulierRatio() const
 		{
 			return (outlier_ratio_);
 		}
@@ -178,7 +205,7 @@ namespace pclomp
 
 		/** \brief Convert 6 element transformation vector to affine transformation.
 		  * \param[in] x transformation vector of the form [x, y, z, roll, pitch, yaw]
-		  * \param[out] trans affine transform corresponding to given transformation vector
+		  * \param[out] trans affine transform corresponding to given transfomation vector
 		  */
 		static void
 			convertTransform(const Eigen::Matrix<double, 6, 1> &x, Eigen::Affine3f &trans)
@@ -191,7 +218,7 @@ namespace pclomp
 
 		/** \brief Convert 6 element transformation vector to transformation matrix.
 		  * \param[in] x transformation vector of the form [x, y, z, roll, pitch, yaw]
-		  * \param[out] trans 4x4 transformation matrix corresponding to given transformation vector
+		  * \param[out] trans 4x4 transformation matrix corresponding to given transfomation vector
 		  */
 		static void
 			convertTransform(const Eigen::Matrix<double, 6, 1> &x, Eigen::Matrix4f &trans)
@@ -204,6 +231,10 @@ namespace pclomp
 		// negative log likelihood function
 		// lower is better
 		double calculateScore(const PointCloudSource& cloud) const;
+
+		const TargetGrid& getTargetCells () const {
+      return target_cells_;
+    }
 
 	protected:
 
@@ -225,7 +256,7 @@ namespace pclomp
 		using pcl::Registration<PointSource, PointTarget>::update_visualizer_;
 
 		/** \brief Estimate the transformation and returns the transformed source (input) as output.
-		  * \param[out] output the resultant input transformed point cloud dataset
+		  * \param[out] output the resultant input transfomed point cloud dataset
 		  */
 		virtual void
 			computeTransformation(PointCloudSource &output)
@@ -234,7 +265,7 @@ namespace pclomp
 		}
 
 		/** \brief Estimate the transformation and returns the transformed source (input) as output.
-		  * \param[out] output the resultant input transformed point cloud dataset
+		  * \param[out] output the resultant input transfomed point cloud dataset
 		  * \param[in] guess the initial gross estimation of the transformation
 		  */
 		virtual void
@@ -256,7 +287,7 @@ namespace pclomp
 		  * \param[out] hessian the hessian matrix of the probability function w.r.t. the transformation vector
 		  * \param[in] trans_cloud transformed point cloud
 		  * \param[in] p the current transform vector
-		  * \param[in] compute_hessian flag to calculate hessian, unnecessary for step calculation.
+		  * \param[in] compute_hessian flag to calculate hessian, unnessissary for step calculation.
 		  */
 		double
 			computeDerivatives(Eigen::Matrix<double, 6, 1> &score_gradient,
@@ -265,13 +296,13 @@ namespace pclomp
 				Eigen::Matrix<double, 6, 1> &p,
 				bool compute_hessian = true);
 
-		/** \brief Compute individual point contributions to derivatives of probability function w.r.t. the transformation vector.
+		/** \brief Compute individual point contirbutions to derivatives of probability function w.r.t. the transformation vector.
 		  * \note Equation 6.10, 6.12 and 6.13 [Magnusson 2009].
 		  * \param[in,out] score_gradient the gradient vector of the probability function w.r.t. the transformation vector
 		  * \param[in,out] hessian the hessian matrix of the probability function w.r.t. the transformation vector
 		  * \param[in] x_trans transformed point minus mean of occupied covariance voxel
 		  * \param[in] c_inv covariance of occupied covariance voxel
-		  * \param[in] compute_hessian flag to calculate hessian, unnecessary for step calculation.
+		  * \param[in] compute_hessian flag to calculate hessian, unnessissary for step calculation.
 		  */
 		double
 			updateDerivatives(Eigen::Matrix<double, 6, 1> &score_gradient,
@@ -281,10 +312,10 @@ namespace pclomp
 				const Eigen::Vector3d &x_trans, const Eigen::Matrix3d &c_inv,
 				bool compute_hessian = true) const;
 
-		/** \brief Precompute angular components of derivatives.
+		/** \brief Precompute anglular components of derivatives.
 		  * \note Equation 6.19 and 6.21 [Magnusson 2009].
 		  * \param[in] p the current transform vector
-		  * \param[in] compute_hessian flag to calculate hessian, unnecessary for step calculation.
+		  * \param[in] compute_hessian flag to calculate hessian, unnessissary for step calculation.
 		  */
 		void
 			computeAngleDerivatives(Eigen::Matrix<double, 6, 1> &p, bool compute_hessian = true);
@@ -292,7 +323,7 @@ namespace pclomp
 		/** \brief Compute point derivatives.
 		  * \note Equation 6.18-21 [Magnusson 2009].
 		  * \param[in] x point from the input cloud
-		  * \param[in] compute_hessian flag to calculate hessian, unnecessary for step calculation.
+		  * \param[in] compute_hessian flag to calculate hessian, unnessissary for step calculation.
 		  */
 		void
 			computePointDerivatives(Eigen::Vector3d &x, Eigen::Matrix<double, 3, 6>& point_gradient_, Eigen::Matrix<double, 18, 6>& point_hessian_, bool compute_hessian = true) const;
@@ -311,7 +342,7 @@ namespace pclomp
 				PointCloudSource &trans_cloud,
 				Eigen::Matrix<double, 6, 1> &p);
 
-		/** \brief Compute individual point contributions to hessian of probability function w.r.t. the transformation vector.
+		/** \brief Compute individual point contirbutions to hessian of probability function w.r.t. the transformation vector.
 		  * \note Equation 6.13 [Magnusson 2009].
 		  * \param[in,out] hessian the hessian matrix of the probability function w.r.t. the transformation vector
 		  * \param[in] x_trans transformed point minus mean of occupied covariance voxel
@@ -327,7 +358,7 @@ namespace pclomp
 		  * \note Search Algorithm [More, Thuente 1994]
 		  * \param[in] x initial transformation vector, \f$ x \f$ in Equation 1.3 (Moore, Thuente 1994) and \f$ \vec{p} \f$ in Algorithm 2 [Magnusson 2009]
 		  * \param[in] step_dir descent direction, \f$ p \f$ in Equation 1.3 (Moore, Thuente 1994) and \f$ \delta \vec{p} \f$ normalized in Algorithm 2 [Magnusson 2009]
-		  * \param[in] step_init initial step length estimate, \f$ \alpha_0 \f$ in Moore-Thuente (1994) and the normal of \f$ \delta \vec{p} \f$ in Algorithm 2 [Magnusson 2009]
+		  * \param[in] step_init initial step length estimate, \f$ \alpha_0 \f$ in Moore-Thuente (1994) and the noramal of \f$ \delta \vec{p} \f$ in Algorithm 2 [Magnusson 2009]
 		  * \param[in] step_max maximum step length, \f$ \alpha_max \f$ in Moore-Thuente (1994)
 		  * \param[in] step_min minimum step length, \f$ \alpha_min \f$ in Moore-Thuente (1994)
 		  * \param[out] score final score function value, \f$ f(x + \alpha p) \f$ in Equation 1.3 (Moore, Thuente 1994) and \f$ score \f$ in Algorithm 2 [Magnusson 2009]
@@ -347,7 +378,7 @@ namespace pclomp
 				PointCloudSource &trans_cloud);
 
 		/** \brief Update interval of possible step lengths for More-Thuente method, \f$ I \f$ in More-Thuente (1994)
-		  * \note Updating Algorithm until some value satisfies \f$ \psi(\alpha_k) \leq 0 \f$ and \f$ \phi'(\alpha_k) \geq 0 \f$
+		  * \note Updating Algorithm until some value satifies \f$ \psi(\alpha_k) \leq 0 \f$ and \f$ \phi'(\alpha_k) \geq 0 \f$
 		  * and Modified Updating Algorithm from then on [More, Thuente 1994].
 		  * \param[in,out] a_l first endpoint of interval \f$ I \f$, \f$ \alpha_l \f$ in Moore-Thuente (1994)
 		  * \param[in,out] f_l value at first endpoint, \f$ f_l \f$ in Moore-Thuente (1994), \f$ \psi(\alpha_l) \f$ for Update Algorithm and \f$ \phi(\alpha_l) \f$ for Modified Update Algorithm
@@ -367,7 +398,7 @@ namespace pclomp
 
 		/** \brief Select new trial value for More-Thuente method.
 		  * \note Trial Value Selection [More, Thuente 1994], \f$ \psi(\alpha_k) \f$ is used for \f$ f_k \f$ and \f$ g_k \f$
-		  * until some value satisfies the test \f$ \psi(\alpha_k) \leq 0 \f$ and \f$ \phi'(\alpha_k) \geq 0 \f$
+		  * until some value satifies the test \f$ \psi(\alpha_k) \leq 0 \f$ and \f$ \phi'(\alpha_k) \geq 0 \f$
 		  * then \f$ \phi(\alpha_k) \f$ is used from then on.
 		  * \note Interpolation Minimizer equations from Optimization Theory and Methods: Nonlinear Programming By Wenyu Sun, Ya-xiang Yuan (89-100).
 		  * \param[in] a_l first endpoint of interval \f$ I \f$, \f$ \alpha_l \f$ in Moore-Thuente (1994)
@@ -386,30 +417,30 @@ namespace pclomp
 				double a_u, double f_u, double g_u,
 				double a_t, double f_t, double g_t);
 
-		/** \brief Auxiliary function used to determine endpoints of More-Thuente interval.
+		/** \brief Auxilary function used to determin endpoints of More-Thuente interval.
 		  * \note \f$ \psi(\alpha) \f$ in Equation 1.6 (Moore, Thuente 1994)
 		  * \param[in] a the step length, \f$ \alpha \f$ in More-Thuente (1994)
 		  * \param[in] f_a function value at step length a, \f$ \phi(\alpha) \f$ in More-Thuente (1994)
 		  * \param[in] f_0 initial function value, \f$ \phi(0) \f$ in Moore-Thuente (1994)
 		  * \param[in] g_0 initial function gradiant, \f$ \phi'(0) \f$ in More-Thuente (1994)
 		  * \param[in] mu the step length, constant \f$ \mu \f$ in Equation 1.1 [More, Thuente 1994]
-		  * \return sufficient decrease value
+		  * \return sufficent decrease value
 		  */
 		inline double
-			auxiliaryFunction_PsiMT(double a, double f_a, double f_0, double g_0, double mu = 1.e-4)
+			auxilaryFunction_PsiMT(double a, double f_a, double f_0, double g_0, double mu = 1.e-4)
 		{
 			return (f_a - f_0 - mu * g_0 * a);
 		}
 
-		/** \brief Auxiliary function derivative used to determine endpoints of More-Thuente interval.
+		/** \brief Auxilary function derivative used to determin endpoints of More-Thuente interval.
 		  * \note \f$ \psi'(\alpha) \f$, derivative of Equation 1.6 (Moore, Thuente 1994)
 		  * \param[in] g_a function gradient at step length a, \f$ \phi'(\alpha) \f$ in More-Thuente (1994)
 		  * \param[in] g_0 initial function gradiant, \f$ \phi'(0) \f$ in More-Thuente (1994)
 		  * \param[in] mu the step length, constant \f$ \mu \f$ in Equation 1.1 [More, Thuente 1994]
-		  * \return sufficient decrease derivative
+		  * \return sufficent decrease derivative
 		  */
 		inline double
-			auxiliaryFunction_dPsiMT(double g_a, double g_0, double mu = 1.e-4)
+			auxilaryFunction_dPsiMT(double g_a, double g_0, double mu = 1.e-4)
 		{
 			return (g_a - mu * g_0);
 		}

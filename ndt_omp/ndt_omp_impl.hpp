@@ -1,5 +1,43 @@
 #include "ndt_omp.h"
-
+/*
+ * Software License Agreement (BSD License)
+ *
+ *  Point Cloud Library (PCL) - www.pointclouds.org
+ *  Copyright (c) 2010-2011, Willow Garage, Inc.
+ *  Copyright (c) 2012-, Open Perception, Inc.
+ *
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the copyright holder(s) nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
+ *
+ */
 
 #ifndef PCL_REGISTRATION_NDT_OMP_IMPL_H_
 #define PCL_REGISTRATION_NDT_OMP_IMPL_H_
@@ -23,7 +61,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::NormalDistributi
 
   double gauss_c1, gauss_c2;
 
-  // Initializes the gaussian fitting parameters (eq. 6.8) [Magnusson 2009]
+  // Initializes the guassian fitting parameters (eq. 6.8) [Magnusson 2009]
   gauss_c1 = 10.0 * (1 - outlier_ratio_);
   gauss_c2 = outlier_ratio_ / pow (resolution_, 3);
   gauss_d3_ = -log (gauss_c2);
@@ -47,7 +85,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeTransform
 
   double gauss_c1, gauss_c2;
 
-  // Initializes the gaussian fitting parameters (eq. 6.8) [Magnusson 2009]
+  // Initializes the guassian fitting parameters (eq. 6.8) [Magnusson 2009]
   gauss_c1 = 10 * (1 - outlier_ratio_);
   gauss_c2 = outlier_ratio_ / pow (resolution_, 3);
   gauss_d3_ = -log (gauss_c2);
@@ -77,7 +115,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeTransform
   double score = 0;
   double delta_p_norm;
 
-  // Calculate derivatives of initial transform vector, subsequent derivative calculations are done in the step length determination.
+  // Calculate derivates of initial transform vector, subsequent derivative calculations are done in the step length determination.
   score = computeDerivatives (score_gradient, hessian, output, p);
 
   while (!converged_)
@@ -90,7 +128,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeTransform
     // Negative for maximization as opposed to minimization
     delta_p = sv.solve (-score_gradient);
 
-    //Calculate step length with guaranteed sufficient decrease [More, Thuente 1994]
+    //Calculate step length with guarnteed sufficient decrease [More, Thuente 1994]
     delta_p_norm = delta_p.norm ();
 
     if (delta_p_norm == 0 || delta_p_norm != delta_p_norm)
@@ -127,7 +165,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeTransform
 
   }
 
-  // Store transformation probability. The relative differences within each scan registration are accurate
+  // Store transformation probability.  The realtive differences within each scan registration are accurate
   // but the normalization constants need to be modified for it to be globally accurate
   trans_probability_ = score / static_cast<double> (input_->points.size ());
 }
@@ -152,7 +190,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeDerivativ
   std::vector<double> scores(input_->points.size());
   std::vector<Eigen::Matrix<double, 6, 1>, Eigen::aligned_allocator<Eigen::Matrix<double, 6, 1>>> score_gradients(input_->points.size());
   std::vector<Eigen::Matrix<double, 6, 6>, Eigen::aligned_allocator<Eigen::Matrix<double, 6, 6>>> hessians(input_->points.size());
-  for (std::size_t i = 0; i < input_->points.size(); i++) {
+  for (int i = 0; i < input_->points.size(); i++) {
 		scores[i] = 0;
 		score_gradients[i].setZero();
 		hessians[i].setZero();
@@ -166,7 +204,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeDerivativ
 
 	// Update gradient and hessian for each point, line 17 in Algorithm 2 [Magnusson 2009]
 #pragma omp parallel for num_threads(num_threads_) schedule(guided, 8)
-	for (std::size_t idx = 0; idx < input_->points.size(); idx++)
+	for (int idx = 0; idx < input_->points.size(); idx++)
 	{
 		int thread_n = omp_get_thread_num();
 
@@ -191,7 +229,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeDerivativ
 		auto& neighborhood = neighborhoods[thread_n];
 		auto& distances = distancess[thread_n];
 
-		// Find neighbors (Radius search has been experimentally faster than direct neighbor checking.
+		// Find nieghbors (Radius search has been experimentally faster than direct neighbor checking.
 		switch (search_method) {
 		case KDTREE:
 			target_cells_.radiusSearch(x_trans_pt, resolution_, neighborhood, distances);
@@ -237,7 +275,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeDerivativ
 	}
 
   // Ensure that the result is invariant against the summing up order
-  for (std::size_t i = 0; i < input_->points.size(); i++) {
+  for (int i = 0; i < input_->points.size(); i++) {
 		score += scores[i];
 		score_gradient += score_gradients[i];
 		hessian += hessians[i];
@@ -316,11 +354,10 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeAngleDeri
 		h_ang_b2_ << (cx * cy * cz), (-cx * cy * sz), (cx * sy);
 		h_ang_b3_ << (sx * cy * cz), (-sx * cy * sz), (sx * sy);
 
-		// The sign of 'sx * sz' in c2 is incorrect in [Magnusson 2009], and it is fixed here.
 		h_ang_c2_ << (-sx * cz - cx * sy * sz), (sx * sz - cx * sy * cz), 0;
 		h_ang_c3_ << (cx * cz - sx * sy * sz), (-sx * sy * cz - cx * sz), 0;
 
-		h_ang_d1_ << (-cy * cz), (cy * sz), (-sy);
+		h_ang_d1_ << (-cy * cz), (cy * sz), (sy);
 		h_ang_d2_ << (-sx * sy * cz), (sx * sy * sz), (sx * cy);
 		h_ang_d3_ << (cx * sy * cz), (-cx * sy * sz), (-cx * cy);
 
@@ -459,7 +496,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::updateDerivative
 
 	// e^(-d_2/2 * (x_k - mu_k)^T Sigma_k^-1 (x_k - mu_k)) Equation 6.9 [Magnusson 2009]
 	float e_x_cov_x = exp(-gauss_d2 * x_trans4.dot(x_trans4 * c_inv4) * 0.5f);
-	// Calculate probability of transformed points existence, Equation 6.9 [Magnusson 2009]
+	// Calculate probability of transtormed points existance, Equation 6.9 [Magnusson 2009]
 	float score_inc = -gauss_d1_ * e_x_cov_x;
 
 	e_x_cov_x = gauss_d2 * e_x_cov_x;
@@ -521,14 +558,14 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeHessian (
 
   hessian.setZero ();
 
-  // Precompute Angular Derivatives unnecessary because only used after regular derivative calculation
+  // Precompute Angular Derivatives unessisary because only used after regular derivative calculation
 
   // Update hessian for each point, line 17 in Algorithm 2 [Magnusson 2009]
   for (size_t idx = 0; idx < input_->points.size (); idx++)
   {
     x_trans_pt = trans_cloud.points[idx];
 
-    // Find neighbors (Radius search has been experimentally faster than direct neighbor checking.
+    // Find nieghbors (Radius search has been experimentally faster than direct neighbor checking.
     std::vector<TargetGridLeafConstPtr> neighborhood;
     std::vector<float> distances;
 		switch (search_method) {
@@ -762,7 +799,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeStepLengt
   int max_step_iterations = 10;
   int step_iterations = 0;
 
-  // Sufficient decrease constant, Equation 1.1 [More, Thuete 1994]
+  // Sufficient decreace constant, Equation 1.1 [More, Thuete 1994]
   double mu = 1.e-4;
   // Curvature condition constant, Equation 1.2 [More, Thuete 1994]
   double nu = 0.9;
@@ -771,11 +808,11 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeStepLengt
   double a_l = 0, a_u = 0;
 
   // Auxiliary function psi is used until I is determined ot be a closed interval, Equation 2.1 [More, Thuente 1994]
-  double f_l = auxiliaryFunction_PsiMT (a_l, phi_0, phi_0, d_phi_0, mu);
-  double g_l = auxiliaryFunction_dPsiMT (d_phi_0, d_phi_0, mu);
+  double f_l = auxilaryFunction_PsiMT (a_l, phi_0, phi_0, d_phi_0, mu);
+  double g_l = auxilaryFunction_dPsiMT (d_phi_0, d_phi_0, mu);
 
-  double f_u = auxiliaryFunction_PsiMT (a_u, phi_0, phi_0, d_phi_0, mu);
-  double g_u = auxiliaryFunction_dPsiMT (d_phi_0, d_phi_0, mu);
+  double f_u = auxilaryFunction_PsiMT (a_u, phi_0, phi_0, d_phi_0, mu);
+  double g_u = auxilaryFunction_dPsiMT (d_phi_0, d_phi_0, mu);
 
   // Check used to allow More-Thuente step length calculation to be skipped by making step_min == step_max
   bool interval_converged = (step_max - step_min) < 0, open_interval = true;
@@ -794,7 +831,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeStepLengt
   // New transformed point cloud
   transformPointCloud (*input_, trans_cloud, final_transformation_);
 
-  // Updates score, gradient and hessian.  Hessian calculation is unnecessary but testing showed that most step calculations use the
+  // Updates score, gradient and hessian.  Hessian calculation is unessisary but testing showed that most step calculations use the
   // initial step suggestion and recalculation the reusable portions of the hessian would intail more computation time.
   score = computeDerivatives (score_gradient, hessian, trans_cloud, x_t, true);
 
@@ -804,14 +841,14 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeStepLengt
   double d_phi_t = -(score_gradient.dot (step_dir));
 
   // Calculate psi(alpha_t)
-  double psi_t = auxiliaryFunction_PsiMT (a_t, phi_t, phi_0, d_phi_0, mu);
+  double psi_t = auxilaryFunction_PsiMT (a_t, phi_t, phi_0, d_phi_0, mu);
   // Calculate psi'(alpha_t)
-  double d_psi_t = auxiliaryFunction_dPsiMT (d_phi_t, d_phi_0, mu);
+  double d_psi_t = auxilaryFunction_dPsiMT (d_phi_t, d_phi_0, mu);
 
-  // Iterate until max number of iterations, interval convergence or a value satisfies the sufficient decrease, Equation 1.1, and curvature condition, Equation 1.2 [More, Thuente 1994]
+  // Iterate until max number of iterations, interval convergance or a value satisfies the sufficient decrease, Equation 1.1, and curvature condition, Equation 1.2 [More, Thuente 1994]
   while (!interval_converged && step_iterations < max_step_iterations && !(psi_t <= 0 /*Sufficient Decrease*/ && d_phi_t <= -nu * d_phi_0 /*Curvature Condition*/))
   {
-    // Use auxiliary function if interval I is not closed
+    // Use auxilary function if interval I is not closed
     if (open_interval)
     {
       a_t = trialValueSelectionMT (a_l, f_l, g_l,
@@ -848,9 +885,9 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeStepLengt
     d_phi_t = -(score_gradient.dot (step_dir));
 
     // Calculate psi(alpha_t+)
-    psi_t = auxiliaryFunction_PsiMT (a_t, phi_t, phi_0, d_phi_0, mu);
+    psi_t = auxilaryFunction_PsiMT (a_t, phi_t, phi_0, d_phi_0, mu);
     // Calculate psi'(alpha_t+)
-    d_psi_t = auxiliaryFunction_dPsiMT (d_phi_t, d_phi_0, mu);
+    d_psi_t = auxilaryFunction_dPsiMT (d_phi_t, d_phi_0, mu);
 
     // Check if I is now a closed interval
     if (open_interval && (psi_t <= 0 && d_psi_t >= 0))
@@ -885,7 +922,7 @@ pclomp::NormalDistributionsTransform<PointSource, PointTarget>::computeStepLengt
   }
 
   // If inner loop was run then hessian needs to be calculated.
-  // Hessian is unnecessary for step length determination but gradients are required
+  // Hessian is unnessisary for step length determination but gradients are required
   // so derivative and transform data is stored for the next iteration.
   if (step_iterations)
     computeHessian (hessian, trans_cloud, x_t);
@@ -899,11 +936,11 @@ double pclomp::NormalDistributionsTransform<PointSource, PointTarget>::calculate
 {
 	double score = 0;
 
-	for (std::size_t idx = 0; idx < trans_cloud.points.size(); idx++)
+	for (int idx = 0; idx < trans_cloud.points.size(); idx++)
 	{
 		PointSource x_trans_pt = trans_cloud.points[idx];
 
-		// Find neighbors (Radius search has been experimentally faster than direct neighbor checking.
+		// Find nieghbors (Radius search has been experimentally faster than direct neighbor checking.
 		std::vector<TargetGridLeafConstPtr> neighborhood;
 		std::vector<float> distances;
 		switch (search_method) {
@@ -935,7 +972,7 @@ double pclomp::NormalDistributionsTransform<PointSource, PointTarget>::calculate
 
 			// e^(-d_2/2 * (x_k - mu_k)^T Sigma_k^-1 (x_k - mu_k)) Equation 6.9 [Magnusson 2009]
 			double e_x_cov_x = exp(-gauss_d2_ * x_trans.dot(c_inv * x_trans) / 2);
-			// Calculate probability of transformed points existence, Equation 6.9 [Magnusson 2009]
+			// Calculate probability of transtormed points existance, Equation 6.9 [Magnusson 2009]
 			double score_inc = -gauss_d1_ * e_x_cov_x - gauss_d3_;
 
 			score += score_inc / neighborhood.size();
