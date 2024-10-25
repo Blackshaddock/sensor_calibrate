@@ -4,7 +4,7 @@
 #include <omp.h>
 #include <mutex>
 #include <math.h>
-#include <thread>
+#include <boost/thread.hpp>
 #include <fstream>
 #include <csignal>
 #include <unistd.h>
@@ -99,6 +99,7 @@ public:
     bool                            isRotationMode = true;
     bool                            isRote = false;
     boost::thread* m_pThread;
+    
     MeasureGroup                    Measures;
     StatesGroup                     g_lio_state;
     std::mutex                      m_mLidarmutex;

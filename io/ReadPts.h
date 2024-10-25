@@ -8,6 +8,7 @@
 #include <thread>
 #include <float.h>
 #include <sstream>
+#include <fstream>
 
 
 #include "internal/Utils.h"

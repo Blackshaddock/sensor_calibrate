@@ -5,10 +5,13 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <deque>
+#include <opencv/cv.hpp>
+#include "internal/PoseD.h"
+
 // namespace of sensor calibration
 namespace sc {
 
-struct PointXYZIRT {
+struct EIGEN_ALIGN16 PointXYZIRT {
 	PCL_ADD_POINT4D;
 	PCL_ADD_NORMAL4D;
 	double time;
@@ -22,7 +25,7 @@ struct PointXYZIRT {
 		float data_c[4];
 	};
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-} EIGEN_ALIGN16;
+}EIGEN_ALIGN16;
 
 typedef PointXYZIRT					BasePoint;
 typedef pcl::PointCloud<BasePoint>	BaseCloud;
@@ -32,8 +35,13 @@ struct PointXYZIRGB {
 	PCL_ADD_POINT4D;
 	PCL_ADD_RGB;
 	float intensity;
+	uint32_t id;
+	int      isColored;
+	int      picNum;
+	int      u;
+	int      v;
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-} EIGEN_ALIGN16;
+}EIGEN_ALIGN16;
 
 typedef PointXYZIRGB				ColorPoint;
 typedef pcl::PointCloud<ColorPoint>	ColorCloud;
@@ -132,7 +140,16 @@ struct MeasureGroup // Lidar data and imu dates for the curent process
 	MeasureGroup() : isStatic(false) {}
 };
 
-}// namespace sc
+struct ImageFrame {
+	cv::Mat image;
+	double  time;
+	PoseD   pose;
+	int     frameId;
+	int     imgtype;    //0   1   2
+
+};
+
+};// namespace sc
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(sc::PointXYZIRT, (float, x, x)
 								 (float, y, y)
@@ -152,6 +169,12 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(sc::PointXYZIRGB, (float, x, x)
 								 (float, intensity, intensity)
 								 (uint8_t, r, r)
 								 (uint8_t, g, g)
-								 (uint8_t, b, b))
+								 (uint8_t, b, b)
+								 (uint32_t, id, id)
+								 (int, isColored, isColored)
+								 (int, picNum, picNum)
+								 (int, u, u)
+								 (int, v, v)
+								)
 
 #endif

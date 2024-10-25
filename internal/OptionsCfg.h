@@ -67,6 +67,34 @@ public:
 };
 
 
+struct slamColorPointOptionsCfg {
+public:
+	typedef std::shared_ptr<slamColorPointOptionsCfg> Ptr;
+	bool                     s_bUseTime;				   //时间附色或者距离附色
+	std::string              s_sLidarFilePath;               //las文件路径
+	std::string              s_sImagePath;				   //图片文件夹
+	std::string              s_sPosFilePath;			   //Pos文件路径
+	double                   s_dRadius;                    //距离附色的阈值
+	Eigen::Matrix3d          s_eRCam2Lid0;                 //左相机的标定参
+	Eigen::Vector3d          s_eTCam2Lid0;                 
+	Eigen::Matrix3d          s_eRCam2Lid;                  //主相机的标定参
+	Eigen::Vector3d          s_eTCam2Lid;                  
+	Eigen::Matrix3d          s_eRCam2Lid2;                 //右相机的标定参
+	Eigen::Vector3d          s_eTCam2Lid2;
+	Eigen::Matrix3d          s_eCamIntrisic0;              //左相机的内参
+	Eigen::Vector4d          s_eCamDisCoffes0;             //左相机的畸变参数
+	Eigen::Matrix3d          s_eCamIntrisic;               //主相机的内参
+	Eigen::Vector4d          s_eCamDisCoffes;              //主相机的畸变参数
+	Eigen::Matrix3d          s_eCamIntrisic2;              //右相机的内参
+	Eigen::Vector4d          s_eCamDisCoffes2;             //右相机的畸变参数
+	int                      s_iCamNum;
+
+
+};
+
+
+
+
 struct slamBaseOptionsCfg {
 public:
 	typedef std::shared_ptr<slamBaseOptionsCfg> Ptr;

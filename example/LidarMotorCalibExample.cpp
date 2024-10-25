@@ -1,6 +1,7 @@
 #include "module/LidarMotorCalibration.h"
 #include "module/LidarSlam.h"
 #include "module/ImuAnchorOptimization.h"
+#include "color_point/color_point.h"
 #include "internal/CeresFactors.h"
 #include <deque>
 
@@ -49,6 +50,13 @@ int main(int argc, char** argv) {
 			std::this_thread::sleep_for(std::chrono::microseconds(1));
 		}
 		
+	}
+	else if (runtype == "color")
+	{
+		ColoredPoint::Ptr colorPtr(new ColoredPoint());
+		colorPtr->LoadConf(argv[1]);
+		colorPtr->Run();
+
 	}
 	else {
 		// ∂¡»Îconfig≤Œ ˝

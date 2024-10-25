@@ -1,22 +1,13 @@
-#pragma once
+﻿#ifndef __UTILS_H__
+#define __UTILS_H__
+
+
 #include <boost/filesystem.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <glog/logging.h>
-#include <yaml-cpp/yaml.h>
-#include <Eigen/Core>
-
 // namespace of sensor calibration
-namespace sc {
-
-static double DEG2RAD = 0.0174532925199432;
-static double RAD2DEG = 57.295779513082320;
+namespace geosun {
 namespace bfs = boost::filesystem;
 
-enum deviceType {
-	handDevice = 0,
-	normalDevice
-
-};
 
 struct sort_function {
     bool operator()(const std::string& str_1, const std::string& str_2)
@@ -47,21 +38,32 @@ bool valid_file(const std::string& path);
 
 bool IsExists(const std::string& path);
 
-//����ŷ���ǻ�ȡ��ת����
-Eigen::Matrix3d GetRFromZYX(double alphax, double alphay, double alphaz);
 
-void GetRFromZYX(double alphax, double alphay, double alphaz, Eigen::Matrix3d &R);
+//获取磁盘的信息，包括剩余空间，总空间等
+bfs::space_info DiskInfo(const std::string& path);
+
+//获取文件大小,单位Kb
+double FileSize(const std::string& path);
 
 
-template <typename T>
-bool GetData(const YAML::Node& node, T& value) {
-	if (!node.IsDefined()) {
-		return false;
-	}
-	value = node.as<T>();
-	return true;
+//十六进制转string
+
+inline std::string binaryToHex(const std::vector<uint8_t>& binary) {
+    std::ostringstream ss;
+    for (uint8_t byte : binary) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    }
+    return ss.str();
 }
 
-std::string UtfToGbk(const std::string& strValue);
+inline std::string binaryToHex(const uint8_t& binary) {
+    std::ostringstream ss;
+    
+    ss << std::hex << std::setw(2) << std::setfill('0') << (int)binary;
+    
+    return ss.str();
+}
 
-}// namespace sc
+
+}// namespace geosun
+#endif // __UTILS_H__
