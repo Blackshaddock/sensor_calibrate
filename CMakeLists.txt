@@ -60,13 +60,13 @@ target_compile_options(2000RWebsocket
 	$<$<CXX_COMPILER_ID:MSVC>:/bigobj> 
 	)
 
-#add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC} ${SCAN_SRC} ${CONFIG_FILE} ${NDTOMP_SRC} ${KDTREE_SRC} ${R3LIVE_SRC} ${ColorPoint_SRC})
-#set_property(TARGET lidar_motor_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
-#target_link_libraries(lidar_motor_calib  ${3RDPARTY_LIBRARIES} )
-#target_compile_options(lidar_motor_calib 
-#	PRIVATE 
-#	$<$<CXX_COMPILER_ID:MSVC>:/bigobj> 
-#	)
+add_executable(lidar_motor_calib example/LidarMotorCalibExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC} ${SCAN_SRC} ${CONFIG_FILE} ${NDTOMP_SRC} ${KDTREE_SRC} ${R3LIVE_SRC} ${ColorPoint_SRC})
+set_property(TARGET lidar_motor_calib PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
+target_link_libraries(lidar_motor_calib  ${3RDPARTY_LIBRARIES} )
+target_compile_options(lidar_motor_calib 
+	PRIVATE 
+	$<$<CXX_COMPILER_ID:MSVC>:/bigobj> 
+	)
 #add_executable(camera_lidar_tracker example/CameraLidarTrackExample.cpp ${INTERNAL_SRC} ${MODULE_SRC} ${IO_SRC})
 #set_property(TARGET camera_lidar_tracker PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${3rdparty_DIR}/VS2015_x64/bin/Release)
 #target_link_libraries(camera_lidar_tracker  ${3RDPARTY_LIBRARIES} planeDetect)
